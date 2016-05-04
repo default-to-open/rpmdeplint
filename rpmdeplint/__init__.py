@@ -56,9 +56,11 @@ class DependencySet(object):
         return self._packagedeps[nevra]['dependencies']
 
 class DependencyAnalyzer(object):
-    def __init__(self):
+    def __init__(self, sack = None):
         self._repos = {}
-        self._sack = hawkey.Sack(make_cache_dir=True)
+        if sack is None:
+            sack = hawkey.Sack(make_cache_dir=True)
+        self._sack = sack
 
     def _create_repo(self, name, fullpath):
         data = Repodata(name, fullpath)
@@ -146,4 +148,5 @@ class DependencyAnalyzer(object):
             ok, results = da.try_to_install(pkg)
             ds.add_package(pkg, pkg.reponame, results['installs'], results['problems'])
 
-        return ds
+        ok = len(ds.overall_problems) == 0
+        return ok, ds

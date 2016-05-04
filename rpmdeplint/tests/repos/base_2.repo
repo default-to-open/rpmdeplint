@@ -1,0 +1,8 @@
+=Ver: 2.0
+#
+=Pkg: eggs 1 3 noarch
+=Prv: egg-whites
+=Prv: egg-yolks
+=Pkg: sugar 4 0 x86_64
+
+

@@ -1,0 +1,12 @@
+=Ver: 2.0
+#
+=Pkg: apple 4.9 3 x86_64
+=Prv: apple-lib
+=Req: peeler
+=Req: lemmon-juice
+=Pkg: lemmon-meringue-pie 1 0 x86_64
+=Req: lemmon-zest
+=Req: lemmon-juice
+=Req: egg-whites
+=Req: egg-yolks
+=Req: sugar

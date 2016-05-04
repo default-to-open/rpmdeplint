@@ -1,5 +1,4 @@
 from unittest import TestCase
-from awesome_print import ap
 from rpmdeplint import DependencySet
 class test_pkg:
     def __init__(self, name, reponame):

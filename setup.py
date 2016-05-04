@@ -10,4 +10,9 @@ setup(name='rpmdeplint',
       packages=['rpmdeplint'],
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],
+      entry_points={
+          'console_scripts': [
+              'rpmdeplint = rpmdeplint.analyze:main',
+          ]
+      },
 )

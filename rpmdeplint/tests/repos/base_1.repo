@@ -1,0 +1,11 @@
+=Ver: 2.0
+#
+=Pkg: lemmon 1 3 noarch
+=Prv: lemmon-juice
+=Prv: lemmon-zest
+=Pkg: peeler 4 0 x86_64
+=Pkg: cinnamon 3 0 noarch
+=Pkg: apple-pie 1.9 1 x86_64
+=Req: apple-lib
+=Req: lemmon-juice
+=Req: cinnamon >= 2.0
