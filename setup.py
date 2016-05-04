@@ -8,6 +8,6 @@ setup(name='rpmdeplint',
       author_email='jorris@redhat.com',
       license='LGPLv2.1',
       packages=['rpmdeplint'],
-      test_suite='nose.collector',
-      tests_require=['nose']
+      setup_requires=['pytest-runner'],
+      tests_require=['pytest'],
 )
