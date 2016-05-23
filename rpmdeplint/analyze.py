@@ -98,4 +98,7 @@ def main():
     ok, result = DependencyAnalyzer.analyze_dependency_set(base_repos, test_repos)
     logger.info(DependencySetText(result, opts.verbose))
     if not ok:
-        exit(1)
+        return 1
+
+if __name__ == '__main__':
+    sys.exit(main())
