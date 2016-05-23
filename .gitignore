@@ -1,0 +1,3 @@
+*.pyc
+/rpmdeplint.egg-info/
+/build/
