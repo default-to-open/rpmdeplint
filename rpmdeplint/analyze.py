@@ -8,9 +8,9 @@ import sys
 DESCRIPTION = """
 
 You may have multiple repos of each type.
-Each one takes two values: the repo name and the source.
+Each one takes two values: the repo name and the path.
 The name may be anything you choose.
-The source must either be a filesystem path or a URL.
+The path must either be a filesystem path or a URL.
 In either case, the path is expected to point at repodata/repomd.xml
 Examples:
 
@@ -75,16 +75,16 @@ def main():
                           nargs=2,
                           action="append",
                           default=[],
-                          help="Name and source of a baseline repo.",
-                          metavar=('NAME', 'SOURCE'),
+                          help="Name and path of a baseline repo.",
+                          metavar=('NAME', 'PATH'),
     )
     parser.add_argument("--test-repo",
                           nargs=2,
                           action="append",
                           default=[],
                           required=True,
-                          help="Name and source of a test repo. At least one test repo is required",
-                          metavar=('NAME', 'SOURCE'),
+                          help="Name and path of a test repo. At least one test repo is required",
+                          metavar=('NAME', 'PATH'),
     )
     parser.add_argument("--verbose",
                       action="store_true",
