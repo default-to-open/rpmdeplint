@@ -1,7 +1,7 @@
 from rpmdeplint import DependencyAnalyzer
 from io import StringIO
 import logging
-import optparse
+import argparse
 import pprint
 import sys
 
@@ -28,8 +28,8 @@ with return code 1 and a message listing the errors encountered:
    nothing provides TurboGears >= 1.1.3 needed by other-package-33.2-1.fc23.noarch
 
 If the --verbose option is used, all of the packages in the test-repos will be
-output, along with all of their dependencies, or problems if dependencies cannot be resolved.
-This can easily produce quite a lot of output. Example:
+output, along with all of their dependencies, or problems if dependencies
+cannot be resolved. This can easily produce quite a lot of output. Example:
 
 beaker-client-22.1-1.fc22.noarch has 72 dependencies:
         basesystem-11-1.fc23.noarch
@@ -69,34 +69,34 @@ class DependencySetText(object):
         return output
 
 def main():
-    parser = optparse.OptionParser(usage="Usage: %prog --base-repo name source --test-repo name source" + DESCRIPTION)
-    parser.add_option("--base-repo",
+    parser = argparse.ArgumentParser(description=DESCRIPTION,
+            formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--base-repo",
                           nargs=2,
-                          type="string",
                           action="append",
                           default=[],
-                          help="Name and source of a baseline repo."
+                          help="Name and source of a baseline repo.",
+                          metavar=('NAME', 'SOURCE'),
     )
-    parser.add_option("--test-repo",
+    parser.add_argument("--test-repo",
                           nargs=2,
-                          type="string",
                           action="append",
                           default=[],
-                          help="Name and source of a test repo. At least one test repo is required"
+                          required=True,
+                          help="Name and source of a test repo. At least one test repo is required",
+                          metavar=('NAME', 'SOURCE'),
     )
-    parser.add_option("--verbose",
+    parser.add_argument("--verbose",
                       action="store_true",
                       dest="verbose",
                       help="Print packages in test repos, along with their dependencies.")
 
-    opts, args = parser.parse_args()
-    if len(opts.test_repo) == 0:
-        parser.error("At least one test repo is required")
+    args = parser.parse_args()
 
-    base_repos = dict(opts.base_repo)
-    test_repos = dict(opts.test_repo)
+    base_repos = dict(args.base_repo)
+    test_repos = dict(args.test_repo)
     ok, result = DependencyAnalyzer.analyze_dependency_set(base_repos, test_repos)
-    logger.info(DependencySetText(result, opts.verbose))
+    logger.info(DependencySetText(result, args.verbose))
     if not ok:
         return 1
 
