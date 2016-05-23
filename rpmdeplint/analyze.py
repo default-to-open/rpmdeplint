@@ -8,14 +8,14 @@ import sys
 DESCRIPTION = """
 
 You may have multiple repos of each type.
-Each one takes two values: the repo name and the path.
+Repos are given in the form: <name>,<path>
 The name may be anything you choose.
 The path must either be a filesystem path or a URL.
 In either case, the path is expected to point at repodata/repomd.xml
 Examples:
 
---base-repo fedora /var/cache/dnf/fedora-fe3d2f0c91e9b65c
---test-repo beaker https://beaker-project.org/yum/client/Fedora23/
+--base-repo fedora,/var/cache/dnf/fedora-fe3d2f0c91e9b65c
+--test-repo beaker,https://beaker-project.org/yum/client/Fedora23/
 
 If all dependencies in the test repo resolve, the program
 will exit normally with the message:
@@ -68,23 +68,29 @@ class DependencySetText(object):
             output = buffer.getvalue()
         return output
 
+def comma_separated_repo(value):
+    if ',' not in value:
+        raise argparse.ArgumentTypeError(
+                'Repo %r is not in the form <name>,<path>' % value)
+    return tuple(value.split(',', 1))
+
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION,
             formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--base-repo",
-                          nargs=2,
+                          type=comma_separated_repo,
                           action="append",
                           default=[],
                           help="Name and path of a baseline repo.",
-                          metavar=('NAME', 'PATH'),
+                          metavar='NAME,PATH',
     )
     parser.add_argument("--test-repo",
-                          nargs=2,
+                          type=comma_separated_repo,
                           action="append",
                           default=[],
                           required=True,
                           help="Name and path of a test repo. At least one test repo is required",
-                          metavar=('NAME', 'PATH'),
+                          metavar='NAME,PATH',
     )
     parser.add_argument("--verbose",
                       action="store_true",
