@@ -3,31 +3,25 @@ from data_setup import create_repo, run_rpmdeplint
 import shutil
 
 
-def test_successful_repoclosure(request):
-    """Runs rpmdeplint and performs a successful repoclosure."""
-    package1_name = 'five'
-    package2_name = 'six'
+def test_shows_error_for_rpms(request):
+    p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    baserepo = create_repo([p2], 'i386')
 
-    package2 = rpmfluff.SimpleRpmBuild(package2_name, '0.1', '1', ['i386'])
-
-    package1 = rpmfluff.SimpleRpmBuild(package1_name, '0.1', '1', ['i386'])
-    package1.add_requires(package2_name)
-    package1.add_provides(package1_name)
-
-    baserepo = create_repo([package1], 'i386')
-    testrepo = create_repo([package2], 'i386')
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    p1.add_requires('doesnotexist')
+    p1.make()
 
     def cleanUp():
         shutil.rmtree(baserepo)
-        shutil.rmtree(testrepo)
+        shutil.rmtree(p1.get_base_dir())
     request.addfinalizer(cleanUp)
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint',
                                          '--base-repo=base,{}'.format(baserepo),
-                                         '--test-repo=test,{}'.format(testrepo)])
-    assert exitcode == 0
+                                         p1.get_built_rpm('i386')])
+    assert exitcode == 1
     assert err == ''
-    assert "All packages installed successfully." in out
+    assert 'Problems with dependency set:\nnothing provides doesnotexist needed by a-0.1-1.i386\n' == out
 
 
 def test_error_if_repository_names_not_provided(tmpdir):

@@ -15,7 +15,7 @@ In either case, the path is expected to point at repodata/repomd.xml
 Examples:
 
 --base-repo fedora,/var/cache/dnf/fedora-fe3d2f0c91e9b65c
---test-repo beaker,https://beaker-project.org/yum/client/Fedora23/
+--base-repo beaker,https://beaker-project.org/yum/client/Fedora23/
 
 If all dependencies in the test repo resolve, the program
 will exit normally with the message:
@@ -77,19 +77,16 @@ def comma_separated_repo(value):
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION,
             formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("rpms",
+                        metavar="PATH",
+                        type=str,
+                        nargs='+',
+                        help='Path to RPM packages to be tested.')
     parser.add_argument("--base-repo",
                           type=comma_separated_repo,
                           action="append",
                           default=[],
                           help="Name and path of a baseline repo.",
-                          metavar='NAME,PATH',
-    )
-    parser.add_argument("--test-repo",
-                          type=comma_separated_repo,
-                          action="append",
-                          default=[],
-                          required=True,
-                          help="Name and path of a test repo. At least one test repo is required",
                           metavar='NAME,PATH',
     )
     parser.add_argument("--verbose",
@@ -100,8 +97,7 @@ def main():
     args = parser.parse_args()
 
     base_repos = dict(args.base_repo)
-    test_repos = dict(args.test_repo)
-    ok, result = DependencyAnalyzer.analyze_dependency_set(base_repos, test_repos)
+    ok, result = DependencyAnalyzer.analyze_dependency_packages(base_repos, args.rpms)
     logger.info(DependencySetText(result, args.verbose))
     if not ok:
         return 1
