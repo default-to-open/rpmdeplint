@@ -8,7 +8,6 @@ setup(name='rpmdeplint',
       author_email='jorris@redhat.com',
       license='LGPLv2.1',
       packages=['rpmdeplint'],
-      setup_requires=['pytest-runner'],
       tests_require=['pytest'],
       entry_points={
           'console_scripts': [
