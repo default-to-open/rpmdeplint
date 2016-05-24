@@ -2,7 +2,6 @@ from rpmdeplint import DependencyAnalyzer
 from io import StringIO
 import logging
 import argparse
-import pprint
 import sys
 
 DESCRIPTION = """
@@ -45,10 +44,13 @@ stdout.setFormatter(logging.Formatter())
 logger.addHandler(stdout)
 logger.setLevel(logging.INFO)
 
+
 class DependencySetText(object):
+
     def __init__(self, dependency_set, verbose):
         self.ds = dependency_set
         self.verbose = verbose
+
     def __str__(self):
         output = ''
         with StringIO() as buffer:
@@ -63,10 +65,11 @@ class DependencySetText(object):
                     for pkg in package_deps.keys():
                         deps = sorted(package_deps[pkg]['dependencies'])
                         buffer.write(u"%s has %s dependencies:\n" % (pkg, len(deps)))
-                        buffer.write(u"\n".join(["\t"+x for x in deps]))
+                        buffer.write(u"\n".join(["\t" + x for x in deps]))
                         buffer.write(u"\n\n")
             output = buffer.getvalue()
         return output
+
 
 def comma_separated_repo(value):
     if ',' not in value:
@@ -74,25 +77,25 @@ def comma_separated_repo(value):
                 'Repo %r is not in the form <name>,<path>' % value)
     return tuple(value.split(',', 1))
 
+
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION,
-            formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("rpms",
                         metavar="PATH",
                         type=str,
                         nargs='+',
                         help='Path to RPM packages to be tested.')
     parser.add_argument("--base-repo",
-                          type=comma_separated_repo,
-                          action="append",
-                          default=[],
-                          help="Name and path of a baseline repo.",
-                          metavar='NAME,PATH',
-    )
+                        type=comma_separated_repo,
+                        action="append",
+                        default=[],
+                        help="Name and path of a baseline repo.",
+                        metavar='NAME,PATH',)
     parser.add_argument("--verbose",
-                      action="store_true",
-                      dest="verbose",
-                      help="Print packages in test repos, along with their dependencies.")
+                        action="store_true",
+                        dest="verbose",
+                        help="Print packages in test repos, along with their dependencies.")
 
     args = parser.parse_args()
 
@@ -101,6 +104,7 @@ def main():
     logger.info(DependencySetText(result, args.verbose))
     if not ok:
         return 1
+
 
 if __name__ == '__main__':
     sys.exit(main())
