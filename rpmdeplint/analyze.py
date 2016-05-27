@@ -81,22 +81,19 @@ def comma_separated_repo(value):
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("rpms",
-                        metavar="PATH",
-                        type=str,
+    parser.add_argument('rpms',
+                        metavar='RPMPATH',
                         nargs='+',
-                        help='Path to RPM packages to be tested.')
-    parser.add_argument("--repo",
+                        help='Path to an RPM package to be tested')
+    parser.add_argument('--repo',
                         type=comma_separated_repo,
-                        action="append",
+                        action='append',
                         dest='repos',
-                        default=[],
-                        help="Name and path of a baseline repo.",
-                        metavar='NAME,PATH',)
-    parser.add_argument("--verbose",
-                        action="store_true",
-                        dest="verbose",
-                        help="Print packages in test repos, along with their dependencies.")
+                        help='Name and path of a repo to test against',
+                        metavar='NAME,REPOPATH')
+    parser.add_argument('--verbose',
+                        action='store_true',
+                        help='Print packages in test repos, along with their dependencies')
 
     args = parser.parse_args()
 
