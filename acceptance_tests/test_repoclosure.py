@@ -17,7 +17,7 @@ def test_shows_error_for_rpms(request):
     request.addfinalizer(cleanUp)
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint',
-                                         '--base-repo=base,{}'.format(baserepo),
+                                         '--repo=base,{}'.format(baserepo),
                                          p1.get_built_rpm('i386')])
     assert exitcode == 1
     assert err == ''
@@ -26,6 +26,6 @@ def test_shows_error_for_rpms(request):
 
 def test_error_if_repository_names_not_provided(tmpdir):
     exitcode, out, err = run_rpmdeplint(
-        ['rpmdeplint', '--base-repo={}'.format(tmpdir.dirpath())])
+        ['rpmdeplint', '--repo={}'.format(tmpdir.dirpath())])
     assert 2 == exitcode
-    assert "error: argument --base-repo: Repo '{}' is not in the form <name>,<path>".format(tmpdir.dirpath()) in err
+    assert "error: argument --repo: Repo '{}' is not in the form <name>,<path>".format(tmpdir.dirpath()) in err

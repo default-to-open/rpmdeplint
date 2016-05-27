@@ -13,8 +13,8 @@ The path must either be a filesystem path or a URL.
 In either case, the path is expected to point at repodata/repomd.xml
 Examples:
 
---base-repo fedora,/var/cache/dnf/fedora-fe3d2f0c91e9b65c
---base-repo beaker,https://beaker-project.org/yum/client/Fedora23/
+--repo fedora,/var/cache/dnf/fedora-fe3d2f0c91e9b65c
+--repo beaker,https://beaker-project.org/yum/client/Fedora23/
 
 If all dependencies in the test repo resolve, the program
 will exit normally with the message:
@@ -86,9 +86,10 @@ def main():
                         type=str,
                         nargs='+',
                         help='Path to RPM packages to be tested.')
-    parser.add_argument("--base-repo",
+    parser.add_argument("--repo",
                         type=comma_separated_repo,
                         action="append",
+                        dest='repos',
                         default=[],
                         help="Name and path of a baseline repo.",
                         metavar='NAME,PATH',)
@@ -99,8 +100,7 @@ def main():
 
     args = parser.parse_args()
 
-    base_repos = dict(args.base_repo)
-    ok, result = DependencyAnalyzer.analyze_dependency_packages(base_repos, args.rpms)
+    ok, result = DependencyAnalyzer.analyze_dependency_packages(dict(args.repos), args.rpms)
     logger.info(DependencySetText(result, args.verbose))
     if not ok:
         return 1

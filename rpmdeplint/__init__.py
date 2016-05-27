@@ -129,15 +129,15 @@ class DependencyAnalyzer(object):
         return install_succeeded, results
 
     @staticmethod
-    def analyze_dependency_packages(base_repos, packages):
+    def analyze_dependency_packages(repos, packages):
         da = DependencyAnalyzer()
         for rpm in packages:
             da.add_rpm(rpm)
 
         pkgs_to_test = [p for p in da.list_latest_packages()]
 
-        for name in base_repos:
-            da.add_repo(name, base_repos[name])
+        for name in repos:
+            da.add_repo(name, repos[name])
 
         ds = DependencySet()
         for pkg in pkgs_to_test:
