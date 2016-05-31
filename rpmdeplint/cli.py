@@ -8,7 +8,8 @@ def cmd_check_sat(args):
     Checks that all dependencies needed to install the given packages
     can be satisfied using the given repos.
     """
-    ok, result = DependencyAnalyzer.analyze_dependency_packages(dict(args.repos), args.rpms)
+    analyzer = DependencyAnalyzer(dict(args.repos), args.rpms)
+    ok, result = analyzer.try_to_install_all()
     if not ok:
         sys.stderr.write(u'Problems with dependency set:\n')
         sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
@@ -22,7 +23,8 @@ def cmd_list_deps(args):
     the complete set of dependent packages which are needed
     in order to install the packages under test.
     """
-    ok, result = DependencyAnalyzer.analyze_dependency_packages(dict(args.repos), args.rpms)
+    analyzer = DependencyAnalyzer(dict(args.repos), args.rpms)
+    ok, result = analyzer.try_to_install_all()
     if not ok:
         sys.stderr.write(u'Problems with dependency set:\n')
         sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')

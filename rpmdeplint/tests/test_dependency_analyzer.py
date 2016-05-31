@@ -9,7 +9,7 @@ class TestDependencyAnalyzer(TestCase):
         sack = base.TestSack(repo_dir=repo_path)
         sack.load_test_repo("base1", "base_1.repo")
         sack.load_test_repo("test", "test.repo")
-        da = DependencyAnalyzer(sack)
+        da = DependencyAnalyzer(repos={}, packages=[], sack=sack)
 
         pkgs = da.list_latest_packages()
         self.assertEqual(6, len(pkgs))
