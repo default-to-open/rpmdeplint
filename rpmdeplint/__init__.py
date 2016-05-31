@@ -9,6 +9,7 @@ from sets import Set
 import logging
 import hawkey
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,21 +64,41 @@ class DependencySet(object):
 
 
 class DependencyAnalyzer(object):
+    """Context manager which checks packages against provided repos
+    for dependency satisfiability.
+
+    The analyzer will use a temporary directory to cache all downloaded
+    repository data. The cache directory will be cleaned upon exit.
+    """
+
     def __init__(self, repos, packages, sack=None):
         """
-        Packages are RPM files to be tested ("packages under test").
-        Repos are repos to test against.
+        :param repos: An iterable of rpmdeplint.repodata.Repo instances
+        :param packages: An iterable of rpm package paths.
         """
-        self.packages = []
         if sack is None:
             self._sack = hawkey.Sack(make_cache_dir=True)
         else:
             self._sack = sack
+
+        self.repos_by_name = {}  #: mapping of (reponame, rpmdeplint.Repo)
         for repo in repos:
-            self._sack.load_yum_repo(repo=repo, load_filelists=True)
+            repo.download_repodata()
+            self._sack.load_yum_repo(repo=repo.as_hawkey_repo(), load_filelists=True)
+            self.repos_by_name[repo.name] = repo
+
+        self.packages = []  #: list of hawkeye.Package to be tested
         for rpmpath in packages:
             package = self._sack.add_cmdline_package(rpmpath)
             self.packages.append(package)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, tb):
+        """Clean up cache directory to prevent from growing unboundedly."""
+        for repo in self.repos_by_name.itervalues():
+            repo.cleanup_cache()
 
     def find_packages_that_require(self, name):
         pkgs = hawkey.Query(self._sack).filter(requires=name, latest_per_arch=True)

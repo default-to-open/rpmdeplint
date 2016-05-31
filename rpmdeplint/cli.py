@@ -7,8 +7,9 @@
 import sys
 import logging
 import argparse
+
 from rpmdeplint import DependencyAnalyzer
-from rpmdeplint.repodata import create_repos
+from rpmdeplint.repodata import Repo
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +19,13 @@ def cmd_check_sat(args):
     Checks that all dependencies needed to install the given packages
     can be satisfied using the given repos.
     """
-    repos = create_repos(dict(args.repos))
-    analyzer = DependencyAnalyzer(repos, args.rpms)
-    ok, result = analyzer.try_to_install_all()
-    if not ok:
-        sys.stderr.write(u'Problems with dependency set:\n')
-        sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
-        return 1
+    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+        ok, result = analyzer.try_to_install_all()
+
+        if not ok:
+            sys.stderr.write(u'Problems with dependency set:\n')
+            sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
+            return 1
     return 0
 
 
@@ -34,13 +35,13 @@ def cmd_list_deps(args):
     the complete set of dependent packages which are needed
     in order to install the packages under test.
     """
-    repos = create_repos(dict(args.repos))
-    analyzer = DependencyAnalyzer(repos, args.rpms)
-    ok, result = analyzer.try_to_install_all()
-    if not ok:
-        sys.stderr.write(u'Problems with dependency set:\n')
-        sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
-        return 1
+    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+        ok, result = analyzer.try_to_install_all()
+        if not ok:
+            sys.stderr.write(u'Problems with dependency set:\n')
+            sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
+            return 1
+
     package_deps = result.package_dependencies
     for pkg in package_deps.keys():
         deps = sorted(package_deps[pkg]['dependencies'])
@@ -61,7 +62,7 @@ def comma_separated_repo(value):
     if ',' not in value:
         raise argparse.ArgumentTypeError(
                 'Repo %r is not in the form <name>,<path>' % value)
-    return tuple(value.split(',', 1))
+    return Repo(*value.split(',', 1))
 
 
 def main():
@@ -94,6 +95,7 @@ def main():
     args = parser.parse_args()
     logging.getLogger().setLevel(logging.DEBUG)
     log_to_stream(sys.stderr, level=logging.DEBUG if args.debug else logging.WARNING)
+
     return args.func(args)
 
 if __name__ == '__main__':

@@ -7,45 +7,61 @@
 import os
 import logging
 import tempfile
+import shutil
 import librepo
 import hawkey
 
 logger = logging.getLogger(__name__)
 
 
-def create_repos(repos):
-    """
-    Utility function to create wrapper instances of repository information
-    """
-    def _create_repo(name, fullpath):
-        data = Repodata(name, fullpath)
-        repo = hawkey.Repo(name)
-        repo.repomd_fn = data.repomd_fn
-        repo.primary_fn = data.primary_fn
-        repo.filelists_fn = data.filelists_fn
+REPO_CACHE_DIR = os.path.join(os.sep, 'var', 'tmp')
+REPO_CACHE_NAME_PREFIX = 'rpmdeplint-'
+
+
+class Repo(object):
+
+    def __init__(self, repo_name, metadata_path):
+        self.name = repo_name
+        self.metadata_path = metadata_path
+
+    def as_hawkey_repo(self):
+        repo = hawkey.Repo(self.name)
+        repo.repomd_fn = self.repomd_fn
+        repo.primary_fn = self.primary_fn
+        repo.filelists_fn = self.filelists_fn
         return repo
 
-    return [_create_repo(name, repopath) for name, repopath in repos.items()]
-
-
-class Repodata(object):
-    def __init__(self, repo_name, metadata_path):
-        logger.debug('Loading repodata for %s from %s', repo_name, metadata_path)
-        h = librepo.Handle()
+    def download_repodata(self):
+        logger.debug('Loading repodata for %s from %s', self.name, self.metadata_path)
+        self.librepo_handle = h = librepo.Handle()
         r = librepo.Result()
         h.repotype = librepo.LR_YUMREPO
         h.setopt(librepo.LRO_YUMDLIST, ["filelists", "primary"])
-        h.urls = [metadata_path]
+        h.urls = [self.metadata_path]
         h.setopt(librepo.LRO_INTERRUPTIBLE, True)
 
-        if os.path.isdir(metadata_path):
-            self._root_path = metadata_path
+        if os.path.isdir(self.metadata_path):
+            self._root_path = self.metadata_path
             h.local = True
         else:
-            h.destdir = tempfile.mkdtemp(repo_name)
-            self._root_path = h.destdir
+            self._root_path = h.destdir = tempfile.mkdtemp(
+                self.name, prefix=REPO_CACHE_NAME_PREFIX, dir=REPO_CACHE_DIR)
         h.perform(r)
         self._yum_repomd = r.yum_repomd
+
+    def cleanup_cache(self):
+        """Deletes this repository's metadata cache directory from disk.
+
+        In case of an error, the error is logged and no exception is raised.
+        """
+        if self.librepo_handle.local:
+            return
+
+        try:
+            shutil.rmtree(self._root_path)
+        except OSError, err:
+            logger.error(err)
+
     @property
     def yum_repomd(self):
         return self._yum_repomd
