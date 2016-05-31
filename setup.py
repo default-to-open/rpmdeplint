@@ -11,7 +11,7 @@ setup(name='rpmdeplint',
       tests_require=['pytest'],
       entry_points={
           'console_scripts': [
-              'rpmdeplint = rpmdeplint.analyze:main',
+              'rpmdeplint = rpmdeplint.cli:main',
           ]
       },
 )

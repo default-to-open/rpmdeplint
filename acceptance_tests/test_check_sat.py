@@ -16,16 +16,16 @@ def test_shows_error_for_rpms(request):
         shutil.rmtree(p1.get_base_dir())
     request.addfinalizer(cleanUp)
 
-    exitcode, out, err = run_rpmdeplint(['rpmdeplint',
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-sat',
                                          '--repo=base,{}'.format(baserepo),
                                          p1.get_built_rpm('i386')])
     assert exitcode == 1
-    assert err == ''
-    assert 'Problems with dependency set:\nnothing provides doesnotexist needed by a-0.1-1.i386\n' == out
+    assert err == 'Problems with dependency set:\nnothing provides doesnotexist needed by a-0.1-1.i386\n'
+    assert out == ''
 
 
 def test_error_if_repository_names_not_provided(tmpdir):
     exitcode, out, err = run_rpmdeplint(
-        ['rpmdeplint', '--repo={}'.format(tmpdir.dirpath())])
+        ['rpmdeplint', 'check-sat', '--repo={}'.format(tmpdir.dirpath())])
     assert 2 == exitcode
     assert "error: argument --repo: Repo '{}' is not in the form <name>,<path>".format(tmpdir.dirpath()) in err
