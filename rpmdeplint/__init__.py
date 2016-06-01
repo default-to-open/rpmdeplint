@@ -1,5 +1,3 @@
-#!/usr/bin/pythonds
-
 from collections import defaultdict
 from sets import Set
 import hawkey
