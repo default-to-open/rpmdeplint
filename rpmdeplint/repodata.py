@@ -26,6 +26,7 @@ class Repodata(object):
         h.repotype = librepo.LR_YUMREPO
         h.setopt(librepo.LRO_YUMDLIST, ["filelists", "primary"])
         h.urls = [metadata_path]
+        h.setopt(librepo.LRO_INTERRUPTIBLE, True)
 
         if os.path.isdir(metadata_path):
             self._root_path = metadata_path
