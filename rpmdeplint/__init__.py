@@ -1,7 +1,7 @@
 from collections import defaultdict
 from sets import Set
 import hawkey
-from .repodata import Repodata
+
 
 class DependencySet(object):
     def __init__(self):
@@ -52,6 +52,7 @@ class DependencySet(object):
     def dependencies_for_package(self, nevra):
         return self._packagedeps[nevra]['dependencies']
 
+
 class DependencyAnalyzer(object):
     def __init__(self, repos, packages, sack=None):
         """
@@ -63,20 +64,11 @@ class DependencyAnalyzer(object):
             self._sack = hawkey.Sack(make_cache_dir=True)
         else:
             self._sack = sack
-        for name, repopath in repos.items():
-            repo = self._create_repo(name, repopath)
+        for repo in repos:
             self._sack.load_yum_repo(repo=repo, load_filelists=True)
         for rpmpath in packages:
             package = self._sack.add_cmdline_package(rpmpath)
             self.packages.append(package)
-
-    def _create_repo(self, name, fullpath):
-        data = Repodata(name, fullpath)
-        repo = hawkey.Repo(name)
-        repo.repomd_fn = data.repomd_fn
-        repo.primary_fn = data.primary_fn
-        repo.filelists_fn = data.filelists_fn
-        return repo
 
     def find_packages_that_require(self, name):
         pkgs = hawkey.Query(self._sack).filter(requires=name, latest_per_arch=True)

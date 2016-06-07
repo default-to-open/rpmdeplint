@@ -1,6 +1,23 @@
 import os
 import tempfile
 import librepo
+import hawkey
+
+
+def create_repos(repos):
+    """
+    Utility function to create wrapper instances of repository information
+    """
+    def _create_repo(name, fullpath):
+        data = Repodata(name, fullpath)
+        repo = hawkey.Repo(name)
+        repo.repomd_fn = data.repomd_fn
+        repo.primary_fn = data.primary_fn
+        repo.filelists_fn = data.filelists_fn
+        return repo
+
+    return [_create_repo(name, repopath) for name, repopath in repos.items()]
+
 
 class Repodata(object):
     def __init__(self, repo_name, metadata_path):

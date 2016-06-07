@@ -1,6 +1,7 @@
 import sys
 import argparse
 from rpmdeplint import DependencyAnalyzer
+from rpmdeplint.repodata import create_repos
 
 
 def cmd_check_sat(args):
@@ -8,7 +9,8 @@ def cmd_check_sat(args):
     Checks that all dependencies needed to install the given packages
     can be satisfied using the given repos.
     """
-    analyzer = DependencyAnalyzer(dict(args.repos), args.rpms)
+    repos = create_repos(dict(args.repos))
+    analyzer = DependencyAnalyzer(repos, args.rpms)
     ok, result = analyzer.try_to_install_all()
     if not ok:
         sys.stderr.write(u'Problems with dependency set:\n')
@@ -23,7 +25,8 @@ def cmd_list_deps(args):
     the complete set of dependent packages which are needed
     in order to install the packages under test.
     """
-    analyzer = DependencyAnalyzer(dict(args.repos), args.rpms)
+    repos = create_repos(dict(args.repos))
+    analyzer = DependencyAnalyzer(repos, args.rpms)
     ok, result = analyzer.try_to_install_all()
     if not ok:
         sys.stderr.write(u'Problems with dependency set:\n')
