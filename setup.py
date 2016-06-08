@@ -23,7 +23,9 @@ setup(name='rpmdeplint',
       url='https://gerrit.beaker-project.org/rpmdeplint',
       author='Red Hat, Inc.',
       author_email='jorris@redhat.com',
-      license='LGPLv2.1',
+      classifiers=[
+          'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
+      ],
       packages=['rpmdeplint'],
       tests_require=['pytest'],
       data_files = [
