@@ -1,7 +1,10 @@
 import os
+import logging
 import tempfile
 import librepo
 import hawkey
+
+logger = logging.getLogger(__name__)
 
 
 def create_repos(repos):
@@ -21,6 +24,7 @@ def create_repos(repos):
 
 class Repodata(object):
     def __init__(self, repo_name, metadata_path):
+        logger.debug('Loading repodata for %s from %s', repo_name, metadata_path)
         h = librepo.Handle()
         r = librepo.Result()
         h.repotype = librepo.LR_YUMREPO

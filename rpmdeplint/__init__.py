@@ -1,6 +1,9 @@
 from collections import defaultdict
 from sets import Set
+import logging
 import hawkey
+
+logger = logging.getLogger(__name__)
 
 
 class DependencySet(object):
@@ -113,6 +116,7 @@ class DependencyAnalyzer(object):
     def try_to_install_all(self):
         ds = DependencySet()
         for pkg in self.packages:
+            logger.debug('Solving install goal for %s', pkg)
             ok, results = self.try_to_install(pkg)
             ds.add_package(pkg, pkg.reponame, results['installs'], results['problems'])
 

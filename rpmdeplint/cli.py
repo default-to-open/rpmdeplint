@@ -1,7 +1,10 @@
 import sys
+import logging
 import argparse
 from rpmdeplint import DependencyAnalyzer
 from rpmdeplint.repodata import create_repos
+
+logger = logging.getLogger(__name__)
 
 
 def cmd_check_sat(args):
@@ -41,6 +44,13 @@ def cmd_list_deps(args):
     return 0
 
 
+def log_to_stream(stream, level=logging.WARNING):
+    stream_handler = logging.StreamHandler(stream)
+    stream_handler.setLevel(level)
+    stream_handler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
+    logging.getLogger().handlers = [stream_handler]
+
+
 def comma_separated_repo(value):
     if ',' not in value:
         raise argparse.ArgumentTypeError(
@@ -51,6 +61,8 @@ def comma_separated_repo(value):
 def main():
     parser = argparse.ArgumentParser(description='Checks for errors in '
             'RPM packages in the context of their dependency graph.')
+    parser.add_argument('--debug', action='store_true',
+            help='Show detailed progress messages')
     subparsers = parser.add_subparsers(title='subcommands')
 
     parser_check_sat = subparsers.add_parser('check-sat',
@@ -74,6 +86,8 @@ def main():
     parser_list_deps.set_defaults(func=cmd_list_deps)
 
     args = parser.parse_args()
+    logging.getLogger().setLevel(logging.DEBUG)
+    log_to_stream(sys.stderr, level=logging.DEBUG if args.debug else logging.WARNING)
     return args.func(args)
 
 if __name__ == '__main__':
