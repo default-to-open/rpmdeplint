@@ -12,10 +12,11 @@ from rpmdeplint.repodata import REPO_CACHE_DIR, REPO_CACHE_NAME_PREFIX
 from data_setup import run_rpmdeplint
 
 
-def test_lists_dependencies_for_rpms(request):
+def test_lists_dependencies_for_rpms(request, dir_server):
     p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
     baserepo = rpmfluff.YumRepoBuild((p2,))
     baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
 
     p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
     p1.add_requires('b')
@@ -28,7 +29,7 @@ def test_lists_dependencies_for_rpms(request):
     request.addfinalizer(cleanUp)
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
-                                         '--repo=base,{}'.format(baserepo.repoDir),
+                                         '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
     assert exitcode == 0
     assert err == ''
@@ -36,8 +37,7 @@ def test_lists_dependencies_for_rpms(request):
             '\ta-0.1-1.i386\n'
             '\tb-0.1-1.i386\n\n')
 
-
-def test_errors_out_for_unsatisfiable_deps(request):
+def test_lists_dependencies_for_rpms_served_from_filesystem(request):
     p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
     baserepo = rpmfluff.YumRepoBuild((p2,))
     baserepo.make('i386')
@@ -54,6 +54,28 @@ def test_errors_out_for_unsatisfiable_deps(request):
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
                                          '--repo=base,{}'.format(baserepo.repoDir),
+                                         p1.get_built_rpm('i386')])
+    assert exitcode == 1
+
+
+def test_errors_out_for_unsatisfiable_deps(request, dir_server):
+    p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    baserepo = rpmfluff.YumRepoBuild((p2,))
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    p1.add_requires('doesnotexist')
+    p1.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p1.get_base_dir())
+        shutil.rmtree(p2.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
+                                         '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
     assert exitcode == 1
 

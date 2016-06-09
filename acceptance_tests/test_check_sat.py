@@ -9,10 +9,11 @@ from data_setup import run_rpmdeplint
 import shutil
 
 
-def test_shows_error_for_rpms(request):
+def test_shows_error_for_rpms(request, dir_server):
     p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
     baserepo = rpmfluff.YumRepoBuild((p2,))
     baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
 
     p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
     p1.add_requires('doesnotexist')
@@ -25,7 +26,7 @@ def test_shows_error_for_rpms(request):
     request.addfinalizer(cleanUp)
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-sat',
-                                         '--repo=base,{}'.format(baserepo.repoDir),
+                                         '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
     assert exitcode == 1
     assert err == 'Problems with dependency set:\nnothing provides doesnotexist needed by a-0.1-1.i386\n'
