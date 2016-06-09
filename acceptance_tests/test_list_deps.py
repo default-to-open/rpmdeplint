@@ -14,6 +14,7 @@ def test_lists_dependencies_for_rpms(request):
 
     def cleanUp():
         shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p2.get_base_dir())
         shutil.rmtree(p1.get_base_dir())
     request.addfinalizer(cleanUp)
 
@@ -38,6 +39,7 @@ def test_errors_out_for_unsatisfiable_deps(request):
 
     def cleanUp():
         shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p2.get_base_dir())
         shutil.rmtree(p1.get_base_dir())
     request.addfinalizer(cleanUp)
 
