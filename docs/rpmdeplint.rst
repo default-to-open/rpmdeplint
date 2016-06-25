@@ -35,11 +35,12 @@ Commands
 ~~~~~~~~
 
 check-sat
-  Checks for unmet dependencies with the given RPMs against given repositories.
+  Checks for unmet dependencies with the given RPM packages against the given 
+  repositories.
   Each unmet dependency is listed.
 
 list-deps
-  All dependencies will be listed for each given RPM.
+  All dependencies will be listed for each given RPM package.
 
 Exit status
 ~~~~~~~~~~~
