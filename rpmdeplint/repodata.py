@@ -18,6 +18,13 @@ REPO_CACHE_DIR = os.path.join(os.sep, 'var', 'tmp')
 REPO_CACHE_NAME_PREFIX = 'rpmdeplint-'
 
 
+class PackageDownloadError(StandardError):
+    """
+    Raised if a package is being downloaded for further analysis but the download fails.
+    """
+    pass
+
+
 class Repo(object):
 
     def __init__(self, repo_name, metadata_path):
@@ -49,8 +56,29 @@ class Repo(object):
         h.perform(r)
         self._yum_repomd = r.yum_repomd
 
+    def download_package(self, location, checksum_type, checksum):
+        if self.librepo_handle.local:
+            local_path = os.path.join(self._root_path, location)
+            logger.debug('Using package %s from local filesystem directly', local_path)
+            return local_path
+        logger.debug('Loading package %s from repo %s', location, self.name)
+        target = librepo.PackageTarget(location,
+                checksum_type=librepo.checksum_str_to_type(checksum_type),
+                checksum=checksum,
+                dest=self._root_path,
+                handle=self.librepo_handle)
+        librepo.download_packages([target])
+        if target.err and target.err == 'Already downloaded':
+            logger.debug('Already downloaded %s', target.local_path)
+        elif target.err:
+            raise PackageDownloadError('Failed to download %s from repo %s: %s'
+                    % (location, self.name, target.err))
+        else:
+            logger.debug('Saved as %s', target.local_path)
+        return target.local_path
+
     def cleanup_cache(self):
-        """Deletes this repository's metadata cache directory from disk.
+        """Deletes this repository's cache directory from disk.
 
         In case of an error, the error is logged and no exception is raised.
         """

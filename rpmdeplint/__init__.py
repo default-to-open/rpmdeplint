@@ -6,6 +6,7 @@
 
 from collections import defaultdict
 from sets import Set
+import binascii
 import logging
 import hawkey
 
@@ -121,6 +122,15 @@ class DependencyAnalyzer(object):
         pkgs = self.list_latest_packages()
         s = set(repos)
         return [x for x in pkgs if x.reponame in s]
+
+    def download_package(self, package):
+        if package in self.packages:
+            # It's a package under test, nothing to download
+            return package.location
+        repo = self.repos_by_name[package.reponame]
+        checksum_type = hawkey.chksum_name(package.chksum[0])
+        checksum = binascii.hexlify(package.chksum[1])
+        return repo.download_package(package.location, checksum_type=checksum_type, checksum=checksum)
 
     def try_to_install(self, *packages):
         """
