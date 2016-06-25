@@ -9,6 +9,7 @@ from sets import Set
 import binascii
 import logging
 import hawkey
+import rpm
 
 
 logger = logging.getLogger(__name__)
@@ -159,3 +160,60 @@ class DependencyAnalyzer(object):
 
         ok = len(ds.overall_problems) == 0
         return ok, ds
+
+    def _packages_have_explicit_conflict(self, left, right):
+        """
+        Returns True if the given packages have an explicit RPM-level Conflicts 
+        declared between each other.
+        """
+        # XXX there must be a better way of testing for explicit Conflicts but 
+        # the best I could find was to try solving the installation of both and 
+        # checking the problem output...
+        g = hawkey.Goal(self._sack)
+        g.install(left)
+        g.install(right)
+        g.run()
+        if g.problems and 'conflicts' in g.problems[0]:
+            logger.debug('Found explicit Conflicts between %s and %s', left, right)
+            return True
+        return False
+
+    def _file_conflict_is_permitted(self, left, right, filename):
+        """
+        Returns True if rpm would allow both the given packages to share 
+        ownership of the given filename.
+        """
+        ts = rpm.TransactionSet()
+        left_hdr = ts.hdrFromFdno(open(left.location, 'rb'))
+        right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
+        left_files = rpm.files(left_hdr)
+        right_files = rpm.files(right_hdr)
+        if left_files[filename].matches(right_files[filename]):
+            logger.debug('Conflict on %s between %s and %s permitted because files match',
+                    filename, left, right)
+            return True
+        if left_files[filename].color != right_files[filename].color:
+            logger.debug('Conflict on %s between %s and %s permitted because colors differ',
+                    filename, left, right)
+            return True
+        return False
+
+    def find_conflicts(self):
+        """
+        Find undeclared file conflicts in the packages under test.
+        Returns a list of strings describing each conflict found
+        (or empty list if no conflicts were found).
+        """
+        problems = []
+        for package in self.packages:
+            for filename in package.files:
+                for conflicting in hawkey.Query(self._sack).filter(file=filename, latest_per_arch=True):
+                    if conflicting == package:
+                        continue
+                    if self._packages_have_explicit_conflict(package, conflicting):
+                        continue
+                    logger.debug('Considering conflict on %s with %s', filename, conflicting)
+                    if not self._file_conflict_is_permitted(package, conflicting, filename):
+                        problems.append(u'{} provides {} which is also provided by {}'.format(
+                                unicode(package), filename, unicode(conflicting)))
+        return problems

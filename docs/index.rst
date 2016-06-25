@@ -13,12 +13,14 @@ External Dependencies
 
 In order to run the tool, the following pre-requisites need to be installed:
 
+* rpm, rpm-python
 * librepo, python-librepo
 * hawkey, python-hawkey
 
 For development and tests:
 
 * `rpmfluff <https://fedorahosted.org/rpmfluff/>`_
+* glibc.i686 and libgcc.i686, for building 32-bit binaries
 
 Project Links
 -------------

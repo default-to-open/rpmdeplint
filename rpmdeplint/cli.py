@@ -29,6 +29,19 @@ def cmd_check_sat(args):
     return 0
 
 
+def cmd_check_conflicts(args):
+    """
+    Checks for undeclared file conflicts in the given packages.
+    """
+    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+        conflicts = analyzer.find_conflicts()
+    if conflicts:
+        sys.stderr.write(u'Undeclared file conflicts:\n')
+        sys.stderr.write(u'\n'.join(conflicts) + u'\n')
+        return 1
+    return 0
+
+
 def cmd_list_deps(args):
     """
     Lists all (transitive) dependencies of the given packages -- that is,
@@ -81,6 +94,16 @@ def main():
             type=comma_separated_repo, action='append', dest='repos',
             help='Name and path of a repo to test against')
     parser_check_sat.set_defaults(func=cmd_check_sat)
+
+    parser_check_conflicts = subparsers.add_parser('check-conflicts',
+            help='Check for undeclared file conflicts',
+            description=cmd_check_conflicts.__doc__)
+    parser_check_conflicts.add_argument('rpms', metavar='RPMPATH', nargs='+',
+            help='Path to an RPM package to be checked')
+    parser_check_conflicts.add_argument('--repo', metavar='NAME,REPOPATH',
+            type=comma_separated_repo, action='append', dest='repos',
+            help='Name and path of a repo to test against')
+    parser_check_conflicts.set_defaults(func=cmd_check_conflicts)
 
     parser_list_deps = subparsers.add_parser('list-deps',
             help='List all packages needed to satisfy dependencies',
