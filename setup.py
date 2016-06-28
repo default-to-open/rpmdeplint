@@ -16,11 +16,8 @@ release = version
 setup(name='rpmdeplint',
       version=version,
       description='RPM Dependency Graph Analysis',
-      long_description=(
-          open('docs/index.rst').read() + '\n\n' +
-          open('docs/CHANGES.rst').read()
-      ),
-      url='https://gerrit.beaker-project.org/rpmdeplint',
+      long_description=open('README.rst').read(),
+      url='https://rpmdeplint.readthedocs.io',
       author='Red Hat, Inc.',
       author_email='jorris@redhat.com',
       classifiers=[
