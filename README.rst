@@ -22,7 +22,7 @@ For development and tests:
 
 * sphinx
 * `rpmfluff <https://pagure.io/rpmfluff>`_
-* glibc.i686 and libgcc.i686, for building 32-bit binaries
+* glibc-devel.i686 and libgcc.i686, for building 32-bit binaries
 
 Project Links
 -------------
