@@ -12,6 +12,7 @@ import subprocess
 def run_rpmdeplint(args, **kwargs):
     env = os.environ
     env['PYTHONBUFFERED'] = '1'
+    env['PYTHONIOENCODING'] = 'UTF-8'
 
     p = subprocess.Popen(args,
                          stdout=subprocess.PIPE,
@@ -21,10 +22,10 @@ def run_rpmdeplint(args, **kwargs):
                          **kwargs)
 
     max_output = 10240
-    out = p.stdout.read(max_output)
+    out = p.stdout.read(max_output).decode('UTF-8')
     if len(out) == max_output:
         raise RuntimeError('Output size limit exceeded when invoking {}:\n{}'.format(args, out))
-    err = p.stderr.read(max_output)
+    err = p.stderr.read(max_output).decode('UTF-8')
     if len(err) == max_output:
         raise RuntimeError('Stderr size limit exceeded when invoking {}:\n{}'.format(args, out))
     p.wait()

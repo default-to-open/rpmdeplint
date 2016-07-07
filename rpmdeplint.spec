@@ -17,9 +17,11 @@ BuildRequires:  python-rpmfluff
 BuildRequires:  glibc-devel.i686
 BuildRequires:  libgcc.i686
 %endif
+BuildRequires:  python-six
 BuildRequires:  rpm-python
 BuildRequires:  python-hawkey
 BuildRequires:  python-librepo
+Requires:       python-six
 Requires:       rpm-python
 Requires:       python-hawkey
 Requires:       python-librepo

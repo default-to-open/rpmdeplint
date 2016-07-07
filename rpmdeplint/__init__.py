@@ -4,10 +4,13 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+from __future__ import absolute_import
+
 from collections import defaultdict
-from sets import Set
 import binascii
 import logging
+import six
+from six.moves import map
 import hawkey
 import rpm
 
@@ -18,10 +21,10 @@ logger = logging.getLogger(__name__)
 class DependencySet(object):
     def __init__(self):
         self._packagedeps = defaultdict(lambda: dict(dependencies=[],problems=[]))
-        self._packages_with_problems = Set()
-        self._overall_problems = Set()
-        self._repodeps = defaultdict(lambda: Set())
-        self._repo_packages = defaultdict(lambda: Set())
+        self._packages_with_problems = set()
+        self._overall_problems = set()
+        self._repodeps = defaultdict(lambda: set())
+        self._repo_packages = defaultdict(lambda: set())
         self._package_repo = {}
 
     def add_package(self, pkg, reponame, dependencies, problems):
@@ -37,7 +40,7 @@ class DependencySet(object):
 
     @property
     def packages(self):
-        return self._packagedeps.keys()
+        return list(self._packagedeps.keys())
 
     @property
     def overall_problems(self):
@@ -99,7 +102,7 @@ class DependencyAnalyzer(object):
 
     def __exit__(self, type, value, tb):
         """Clean up cache directory to prevent from growing unboundedly."""
-        for repo in self.repos_by_name.itervalues():
+        for repo in self.repos_by_name.values():
             repo.cleanup_cache()
 
     def find_packages_that_require(self, name):
@@ -130,7 +133,7 @@ class DependencyAnalyzer(object):
             return package.location
         repo = self.repos_by_name[package.reponame]
         checksum_type = hawkey.chksum_name(package.chksum[0])
-        checksum = binascii.hexlify(package.chksum[1])
+        checksum = binascii.hexlify(package.chksum[1]).decode('ascii')
         return repo.download_package(package.location, checksum_type=checksum_type, checksum=checksum)
 
     def try_to_install(self, *packages):
@@ -139,7 +142,8 @@ class DependencyAnalyzer(object):
         starting from an empty package set.
         """
         g = hawkey.Goal(self._sack)
-        map(g.install, packages)
+        for package in packages:
+            g.install(package)
         results = dict(installs = [], upgrades = [], erasures = [], problems = [])
         install_succeeded = g.run()
         if install_succeeded:
@@ -217,5 +221,5 @@ class DependencyAnalyzer(object):
                     logger.debug('Considering conflict on %s with %s', filename, conflicting)
                     if not self._file_conflict_is_permitted(package, conflicting, filename):
                         problems.append(u'{} provides {} which is also provided by {}'.format(
-                                unicode(package), filename, unicode(conflicting)))
+                                six.text_type(package), filename, six.text_type(conflicting)))
         return problems

@@ -62,7 +62,7 @@ class DirServer(WSGIServer):
                 return [listing]
             except OSError:
                 start_response('200 OK', [('Content-Length', str(os.path.getsize(localpath)))])
-                return wsgiref.util.FileWrapper(open(localpath, 'r'))
+                return wsgiref.util.FileWrapper(open(localpath, 'rb'))
         else:
             start_response('405 Method Not Allowed', [])
             return []

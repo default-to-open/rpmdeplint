@@ -22,8 +22,11 @@ setup(name='rpmdeplint',
       author_email='jorris@redhat.com',
       classifiers=[
           'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
       ],
       packages=['rpmdeplint', 'rpmdeplint.tests'],
+      install_requires=['six'],
       tests_require=['pytest'],
       data_files = [
           ('/usr/share/man/man1', glob('build/sphinx/man/*.1')),

@@ -4,6 +4,8 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+from __future__ import absolute_import
+
 import os
 import logging
 import tempfile
@@ -18,7 +20,7 @@ REPO_CACHE_DIR = os.path.join(os.sep, 'var', 'tmp')
 REPO_CACHE_NAME_PREFIX = 'rpmdeplint-'
 
 
-class PackageDownloadError(StandardError):
+class PackageDownloadError(Exception):
     """
     Raised if a package is being downloaded for further analysis but the download fails.
     """
@@ -87,7 +89,7 @@ class Repo(object):
 
         try:
             shutil.rmtree(self._root_path)
-        except OSError, err:
+        except OSError as err:
             logger.error(err)
 
     @property

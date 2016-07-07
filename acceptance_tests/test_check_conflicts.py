@@ -96,7 +96,7 @@ def test_conflict_is_ignored_for_rpm_level_conflicts(request, dir_server):
     # https://fedoraproject.org/wiki/Packaging:Conflicts
     p2 = rpmfluff.SimpleRpmBuild('mysql', '0.1', '1', ['i386'])
     p2.add_installed_file(installPath='usr/bin/mysql',
-            sourceFile=rpmfluff.SourceFile('mysql', b'\177ELF-mysql'))
+            sourceFile=rpmfluff.SourceFile('mysql', b'\177ELF-mysql', encoding=None))
     baserepo = rpmfluff.YumRepoBuild([p2])
     baserepo.make('i386')
     dir_server.basepath = baserepo.repoDir
@@ -104,7 +104,7 @@ def test_conflict_is_ignored_for_rpm_level_conflicts(request, dir_server):
     p1 = rpmfluff.SimpleRpmBuild('mariadb', '0.1', '1', ['i386'])
     p1.add_conflicts('mysql')
     p1.add_installed_file(installPath='usr/bin/mysql',
-            sourceFile=rpmfluff.SourceFile('mysql', b'\177ELF-mariadb'))
+            sourceFile=rpmfluff.SourceFile('mysql', b'\177ELF-mariadb', encoding=None))
     p1.make()
 
     def cleanUp():
