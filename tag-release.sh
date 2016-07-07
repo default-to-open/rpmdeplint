@@ -21,7 +21,14 @@ if git status --porcelain | grep -q '^.M' ; then
     exit 1
 fi
 
+sed -i -e "/%global upstream_version /c\%global upstream_version ${version}${prerelease}" rpmdeplint.spec
+sed -i -e "/^Version:/c\Version:        $version" rpmdeplint.spec
+if [ -n "$prerelease" ] ; then
+    sed -i -e "/^Release:/c\Release:        0.$prerelease%{?dist}" rpmdeplint.spec
+else
+    sed -i -e "/^Release:/c\Release:        1%{?dist}" rpmdeplint.spec
+fi
 sed -i -e "/^version = /c\version = '$version$prerelease'" setup.py
-git add setup.py
+git add setup.py rpmdeplint.spec
 git commit -m "Automatic commit of release $version$prerelease"
 git tag -a "rpmdeplint-$version$prerelease" -m "Tagging release $version$prerelease"
