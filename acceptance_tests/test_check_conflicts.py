@@ -7,6 +7,7 @@
 import shutil
 import rpm
 import rpmfluff
+import os.path
 from data_setup import run_rpmdeplint
 
 
@@ -230,3 +231,30 @@ def test_conflict_is_ignored_if_file_colors_are_different(request, dir_server):
                                          '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
     assert exitcode == 0
+
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1353757
+def test_does_not_fail_with_signed_rpms(request, dir_server):
+    p2 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['x86_64'])
+    # Add an undeclared conflict to make rpmdeplint loading the rpms into a
+    # transaction. That would usually trigger a rpm signature verification.
+    p2.add_installed_file(installPath='usr/share/thing',
+                          sourceFile=rpmfluff.SourceFile('thing', 'content\n'),
+                          mode='0600')
+    baserepo = rpmfluff.YumRepoBuild([p2])
+    baserepo.make('x86_64')
+    dir_server.basepath = baserepo.repoDir
+
+    p1 = os.path.join(os.path.dirname(__file__), 'data', 'b-0.1-1.i386.rpm')
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p2.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-conflicts',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         p1])
+    assert exitcode == 1
+    assert err == ('Undeclared file conflicts:\n'
+            'b-0.1-1.i386 provides /usr/share/thing which is also provided by a-0.1-1.x86_64\n')

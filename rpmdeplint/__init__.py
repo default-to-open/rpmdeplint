@@ -184,6 +184,8 @@ class DependencyAnalyzer(object):
         ownership of the given filename.
         """
         ts = rpm.TransactionSet()
+        ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
+
         left_hdr = ts.hdrFromFdno(open(left.location, 'rb'))
         right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
         left_files = rpm.files(left_hdr)
