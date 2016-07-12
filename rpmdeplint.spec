@@ -1,9 +1,9 @@
 
-%global upstream_version 1.0rc1
+%global upstream_version 1.0
 
 Name:           rpmdeplint
 Version:        1.0
-Release:        0.rc1%{?dist}
+Release:        1%{?dist}
 Summary:        Tool to find errors in RPM packages in the context of their dependency graph
 License:        GPLv2+
 URL:            https://pypi.python.org/pypi/rpmdeplint
