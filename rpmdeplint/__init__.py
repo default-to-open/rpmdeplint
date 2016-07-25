@@ -223,3 +223,20 @@ class DependencyAnalyzer(object):
                         problems.append(u'{} provides {} which is also provided by {}'.format(
                                 six.text_type(package), filename, six.text_type(conflicting)))
         return problems
+
+    def find_upgrade_problems(self):
+        """
+        Checks for any package in the repos which would upgrade or obsolete the 
+        packages under test.
+        Returns a list of strings describing each upgrade problem found (or 
+        empty list if no problems were found).
+        """
+        problems = []
+        for package in self.packages:
+            for newer in hawkey.Query(self._sack).filter(name=package.name, arch=package.arch, evr__gt=package.evr):
+                problems.append(u'{} would be upgraded by {} from repo {}'.format(
+                        six.text_type(package), six.text_type(newer), newer.reponame))
+            for obsoleting in hawkey.Query(self._sack).filter(obsoletes=[package]):
+                problems.append(u'{} would be obsoleted by {} from repo {}'.format(
+                        six.text_type(package), six.text_type(obsoleting), obsoleting.reponame))
+        return problems

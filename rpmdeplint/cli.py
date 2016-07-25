@@ -44,6 +44,20 @@ def cmd_check_conflicts(args):
     return 0
 
 
+def cmd_check_upgrade(args):
+    """
+    Checks that the given packages are not older than any other existing
+    package in the repos.
+    """
+    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+        problems = analyzer.find_upgrade_problems()
+    if problems:
+        sys.stderr.write(u'Upgrade problems:\n')
+        sys.stderr.write(u'\n'.join(problems) + u'\n')
+        return 1
+    return 0
+
+
 def cmd_list_deps(args):
     """
     Lists all (transitive) dependencies of the given packages -- that is,
@@ -106,6 +120,16 @@ def main():
             type=comma_separated_repo, action='append', dest='repos',
             help='Name and path of a repo to test against')
     parser_check_conflicts.set_defaults(func=cmd_check_conflicts)
+
+    parser_check_upgrade = subparsers.add_parser('check-upgrade',
+            help='Check package is an upgrade',
+            description=cmd_check_upgrade.__doc__)
+    parser_check_upgrade.add_argument('rpms', metavar='RPMPATH', nargs='+',
+            help='Path to an RPM package to be checked')
+    parser_check_upgrade.add_argument('--repo', metavar='NAME,REPOPATH',
+            type=comma_separated_repo, action='append', dest='repos',
+            help='Name and path of a repo to test against')
+    parser_check_upgrade.set_defaults(func=cmd_check_upgrade)
 
     parser_list_deps = subparsers.add_parser('list-deps',
             help='List all packages needed to satisfy dependencies',

@@ -53,6 +53,15 @@ check-conflicts
   * the file’s color is different between the two packages (RPM will
     silently resolve the conflict in favour of the 64-bit file).
 
+check-upgrade
+  Checks that there are no existing packages in the repositories which would 
+  upgrade or obsolete the given packages.
+
+  If this check fails, it means that the package under test will never be 
+  installed (since the package manager will always pick the newer or obsoleting 
+  package from the repositories instead) which is not desirable, assuming the 
+  package is intended as an update.
+
 list-deps
   All dependencies will be listed for each given RPM package.
 
