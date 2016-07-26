@@ -168,16 +168,30 @@ class DependencyAnalyzer(object):
     def find_repoclosure_problems(self):
         problems = []
         available = hawkey.Query(self._sack).filter(latest_per_arch=True)
+        # Filter out any obsoleted packages from the list of available packages.
+        # It would be nice if latest_per_arch could do this for us, might make 
+        # a good hawkey RFE...
+        obsoleted = set()
+        for pkg in available:
+            if available.filter(obsoletes=[pkg]):
+                logger.debug('Excluding obsoleted package %s', pkg)
+                obsoleted.add(pkg)
+        # XXX if pkg__neq were implemented we could just filter out obsoleted 
+        # from the available query here
         for pkg in available:
             if pkg in self.packages:
                 continue # checked by check-sat command instead
+            if pkg in obsoleted:
+                continue # no reason to check it
             logger.debug('Checking requires for %s', pkg)
             # XXX limit available packages to compatible arches?
             # (use libsolv archpolicies somehow)
             for req in pkg.requires:
                 if six.text_type(req).startswith('rpmlib('):
                     continue
-                if not available.filter(provides=req):
+                providers = available.filter(provides=req)
+                providers = [p for p in providers if p not in obsoleted]
+                if not providers:
                     problems.append('nothing provides {} needed by {}'.format(
                             six.text_type(req), six.text_type(pkg)))
         return problems

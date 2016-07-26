@@ -47,10 +47,10 @@ check-repoclosure
   test.
 
   Packages are only considered to be available for dependency resolution if 
-  they are the latest version. Therefore this check can detect problems where 
-  a package under test is updating an existing package in the repositories, but 
-  it no longer provides a requirement needed by some other package in the 
-  repositories.
+  they are the latest version and not obsoleted by any other package.
+  Therefore this check can detect problems where a package under test is 
+  updating an existing package in the repositories, but it no longer provides 
+  a requirement needed by some other package in the repositories.
 
 check-conflicts
   Checks for undeclared file conflicts in the given RPM packages: that is, when 

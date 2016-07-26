@@ -42,6 +42,37 @@ def test_catches_soname_change(request, dir_server):
             'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
 
 
+def test_catches_soname_change_with_package_rename(request, dir_server):
+    # Slightly more complicated version of the above, where the old provider is 
+    # not being updated but rather obsoleted.
+    p_older = rpmfluff.SimpleRpmBuild('foolib', '4.0', '1', ['i386'])
+    p_older.add_provides('libfoo.so.4')
+    p_depending = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    p_depending.add_requires('libfoo.so.4')
+    baserepo = rpmfluff.YumRepoBuild([p_older, p_depending])
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    p_newer = rpmfluff.SimpleRpmBuild('libfoo', '5.0', '1', ['i386'])
+    p_newer.add_obsoletes('foolib < 5.0-1')
+    p_newer.add_provides('libfoo.so.5')
+    p_newer.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p_depending.get_base_dir())
+        shutil.rmtree(p_older.get_base_dir())
+        shutil.rmtree(p_newer.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         p_newer.get_built_rpm('i386')])
+    assert exitcode == 1
+    assert err == ('Dependency problems with repos:\n'
+            'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
+
+
 def test_ignores_dependency_problems_in_packages_under_test(request, dir_server):
     # The check-sat command will find and report these problems, it would be 
     # redundant for check-repoclosure to also report the same problems.
