@@ -40,6 +40,18 @@ check-sat
   repositories.
   Each unmet dependency is listed.
 
+check-repoclosure
+  Checks for unmet dependencies in the given repositories, when considered 
+  together with the given packages. This check is similar to *check-sat*, 
+  except it checks only packages in the repositories, not the packages under 
+  test.
+
+  Packages are only considered to be available for dependency resolution if 
+  they are the latest version. Therefore this check can detect problems where 
+  a package under test is updating an existing package in the repositories, but 
+  it no longer provides a requirement needed by some other package in the 
+  repositories.
+
 check-conflicts
   Checks for undeclared file conflicts in the given RPM packages: that is, when 
   one of the given package contains a file which is also contained in some 

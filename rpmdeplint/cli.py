@@ -31,6 +31,20 @@ def cmd_check_sat(args):
     return 0
 
 
+def cmd_check_repoclosure(args):
+    """
+    Checks that all dependencies of all packages in the given repos can still 
+    be satisfied, when the given packages are included.
+    """
+    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+        problems = analyzer.find_repoclosure_problems()
+    if problems:
+        sys.stderr.write(u'Dependency problems with repos:\n')
+        sys.stderr.write(u'\n'.join(problems) + u'\n')
+        return 1
+    return 0
+
+
 def cmd_check_conflicts(args):
     """
     Checks for undeclared file conflicts in the given packages.
@@ -110,6 +124,16 @@ def main():
             type=comma_separated_repo, action='append', dest='repos',
             help='Name and path of a repo to test against')
     parser_check_sat.set_defaults(func=cmd_check_sat)
+
+    parser_check_repoclosure = subparsers.add_parser('check-repoclosure',
+            help='Check that repo dependencies can still be satisfied',
+            description=cmd_check_repoclosure.__doc__)
+    parser_check_repoclosure.add_argument('rpms', metavar='RPMPATH', nargs='+',
+            help='Path to an RPM package to be combined with the repos')
+    parser_check_repoclosure.add_argument('--repo', metavar='NAME,REPOPATH',
+            type=comma_separated_repo, action='append', dest='repos',
+            help='Name and path of a repo to check')
+    parser_check_repoclosure.set_defaults(func=cmd_check_repoclosure)
 
     parser_check_conflicts = subparsers.add_parser('check-conflicts',
             help='Check for undeclared file conflicts',

@@ -165,6 +165,23 @@ class DependencyAnalyzer(object):
         ok = len(ds.overall_problems) == 0
         return ok, ds
 
+    def find_repoclosure_problems(self):
+        problems = []
+        available = hawkey.Query(self._sack).filter(latest_per_arch=True)
+        for pkg in available:
+            if pkg in self.packages:
+                continue # checked by check-sat command instead
+            logger.debug('Checking requires for %s', pkg)
+            # XXX limit available packages to compatible arches?
+            # (use libsolv archpolicies somehow)
+            for req in pkg.requires:
+                if six.text_type(req).startswith('rpmlib('):
+                    continue
+                if not available.filter(provides=req):
+                    problems.append('nothing provides {} needed by {}'.format(
+                            six.text_type(req), six.text_type(pkg)))
+        return problems
+
     def _packages_have_explicit_conflict(self, left, right):
         """
         Returns True if the given packages have an explicit RPM-level Conflicts 
