@@ -52,6 +52,11 @@ check-repoclosure
   updating an existing package in the repositories, but it no longer provides 
   a requirement needed by some other package in the repositories.
 
+  In case a pre-existing repoclosure problem is found (that is, the same 
+  problem exists when considering only the repositories without the packages 
+  under test) a warning is printed to stderr, but the check is *not* considered 
+  to have failed.
+
 check-conflicts
   Checks for undeclared file conflicts in the given RPM packages: that is, when 
   one of the given package contains a file which is also contained in some 

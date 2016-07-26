@@ -96,3 +96,30 @@ def test_ignores_dependency_problems_in_packages_under_test(request, dir_server)
                                          p1.get_built_rpm('i386')])
     assert exitcode == 0
     assert err == ''
+
+
+def test_warns_on_preexisting_repoclosure_problems(request, dir_server):
+    # If the repos have some existing dependency problems, we don't want that 
+    # to be an error -- otherwise a bad repo will make it impossible to get any 
+    # results until the problem is fixed.
+    p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    p2.add_requires('doesnotexist')
+    baserepo = rpmfluff.YumRepoBuild((p2,))
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    p1.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p2.get_base_dir())
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         p1.get_built_rpm('i386')])
+    assert exitcode == 0
+    assert ('Ignoring pre-existing repoclosure problem: '
+            'nothing provides doesnotexist needed by b-0.1-1.i386\n' in err)

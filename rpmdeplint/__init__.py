@@ -168,6 +168,8 @@ class DependencyAnalyzer(object):
     def find_repoclosure_problems(self):
         problems = []
         available = hawkey.Query(self._sack).filter(latest_per_arch=True)
+        available_from_repos = hawkey.Query(self._sack)\
+                .filter(reponame__neq='@commandline').filter(latest_per_arch=True)
         # Filter out any obsoleted packages from the list of available packages.
         # It would be nice if latest_per_arch could do this for us, might make 
         # a good hawkey RFE...
@@ -178,6 +180,11 @@ class DependencyAnalyzer(object):
                 obsoleted.add(pkg)
         # XXX if pkg__neq were implemented we could just filter out obsoleted 
         # from the available query here
+        obsoleted_from_repos = set()
+        for pkg in available_from_repos:
+            if available_from_repos.filter(obsoletes=[pkg]):
+                logger.debug('Excluding obsoleted package %s from repos-only set', pkg)
+                obsoleted_from_repos.add(pkg)
         for pkg in available:
             if pkg in self.packages:
                 continue # checked by check-sat command instead
@@ -192,8 +199,18 @@ class DependencyAnalyzer(object):
                 providers = available.filter(provides=req)
                 providers = [p for p in providers if p not in obsoleted]
                 if not providers:
-                    problems.append('nothing provides {} needed by {}'.format(
-                            six.text_type(req), six.text_type(pkg)))
+                    problem_msg = 'nothing provides {} needed by {}'.format(
+                            six.text_type(req), six.text_type(pkg))
+                    # If it's a pre-existing problem with repos (that is, the 
+                    # problem also exists when the packages under test are 
+                    # excluded) then warn about it here but don't consider it 
+                    # a problem.
+                    repo_providers = available_from_repos.filter(provides=req)
+                    repo_providers = [p for p in repo_providers if p not in obsoleted_from_repos]
+                    if not repo_providers:
+                        logger.warn('Ignoring pre-existing repoclosure problem: %s', problem_msg)
+                    else:
+                        problems.append(problem_msg)
         return problems
 
     def _packages_have_explicit_conflict(self, left, right):
