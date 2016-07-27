@@ -6,15 +6,13 @@ rpmdeplint
 Synopsis
 ~~~~~~~~
 
-| :program:`rpmdeplint check-sat` [:option:`--repo` NAME,PATH] [RPMPATH]
-| :program:`rpmdeplint check-conflicts` [:option:`--repo` NAME,PATH] [RPMPATH]
-| :program:`rpmdeplint list-deps` [:option:`--repo` NAME,PATH] [RPMPATH] 
+| :program:`rpmdeplint` COMMAND [:option:`--repo` NAME,PATH] [RPMPATH]
 
 Description
 ~~~~~~~~~~~
 
-The :program:`rpmdeplint` will test dependency satisfiability of given RPM
-packages against given repositories.
+The :program:`rpmdeplint` command will test dependency satisfiability of given 
+RPM packages against given repositories.
 
 Options
 ~~~~~~~
@@ -34,6 +32,9 @@ Arguments
 
 Commands
 ~~~~~~~~
+
+check
+  Performs each of the checks listed below.
 
 check-sat
   Checks for unmet dependencies with the given RPM packages against the given 

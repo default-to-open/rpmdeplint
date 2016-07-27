@@ -16,6 +16,35 @@ from rpmdeplint.repodata import Repo
 logger = logging.getLogger(__name__)
 
 
+def cmd_check(args):
+    """
+    Performs all checks on the given packages.
+    """
+    failed = False
+    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+        ok, result = analyzer.try_to_install_all()
+        if not ok:
+            sys.stderr.write(u'Problems with dependency set:\n')
+            sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
+            failed = True
+        problems = analyzer.find_repoclosure_problems()
+        if problems:
+            sys.stderr.write(u'Dependency problems with repos:\n')
+            sys.stderr.write(u'\n'.join(problems) + u'\n')
+            failed = True
+        conflicts = analyzer.find_conflicts()
+        if conflicts:
+            sys.stderr.write(u'Undeclared file conflicts:\n')
+            sys.stderr.write(u'\n'.join(conflicts) + u'\n')
+            failed = True
+        problems = analyzer.find_upgrade_problems()
+        if problems:
+            sys.stderr.write(u'Upgrade problems:\n')
+            sys.stderr.write(u'\n'.join(problems) + u'\n')
+            failed = True
+    return 1 if failed else 0
+
+
 def cmd_check_sat(args):
     """
     Checks that all dependencies needed to install the given packages
@@ -108,6 +137,14 @@ def comma_separated_repo(value):
     return Repo(*value.split(',', 1))
 
 
+def add_common_dependency_analyzer_args(parser):
+    parser.add_argument('rpms', metavar='RPMPATH', nargs='+',
+            help='Path to an RPM package to be checked')
+    parser.add_argument('--repo', metavar='NAME,REPOPATH',
+            type=comma_separated_repo, action='append', dest='repos',
+            help='Name and path of a repo to test against')
+
+
 def main():
     parser = argparse.ArgumentParser(description='Checks for errors in '
             'RPM packages in the context of their dependency graph.')
@@ -115,54 +152,40 @@ def main():
             help='Show detailed progress messages')
     subparsers = parser.add_subparsers(title='subcommands')
 
+    parser_check = subparsers.add_parser('check',
+            help='Perform all checks',
+            description=cmd_check.__doc__)
+    add_common_dependency_analyzer_args(parser_check)
+    parser_check.set_defaults(func=cmd_check)
+
     parser_check_sat = subparsers.add_parser('check-sat',
             help='Check that dependencies can be satisfied',
             description=cmd_check_sat.__doc__)
-    parser_check_sat.add_argument('rpms', metavar='RPMPATH', nargs='+',
-            help='Path to an RPM package to be checked')
-    parser_check_sat.add_argument('--repo', metavar='NAME,REPOPATH',
-            type=comma_separated_repo, action='append', dest='repos',
-            help='Name and path of a repo to test against')
+    add_common_dependency_analyzer_args(parser_check_sat)
     parser_check_sat.set_defaults(func=cmd_check_sat)
 
     parser_check_repoclosure = subparsers.add_parser('check-repoclosure',
             help='Check that repo dependencies can still be satisfied',
             description=cmd_check_repoclosure.__doc__)
-    parser_check_repoclosure.add_argument('rpms', metavar='RPMPATH', nargs='+',
-            help='Path to an RPM package to be combined with the repos')
-    parser_check_repoclosure.add_argument('--repo', metavar='NAME,REPOPATH',
-            type=comma_separated_repo, action='append', dest='repos',
-            help='Name and path of a repo to check')
+    add_common_dependency_analyzer_args(parser_check_repoclosure)
     parser_check_repoclosure.set_defaults(func=cmd_check_repoclosure)
 
     parser_check_conflicts = subparsers.add_parser('check-conflicts',
             help='Check for undeclared file conflicts',
             description=cmd_check_conflicts.__doc__)
-    parser_check_conflicts.add_argument('rpms', metavar='RPMPATH', nargs='+',
-            help='Path to an RPM package to be checked')
-    parser_check_conflicts.add_argument('--repo', metavar='NAME,REPOPATH',
-            type=comma_separated_repo, action='append', dest='repos',
-            help='Name and path of a repo to test against')
+    add_common_dependency_analyzer_args(parser_check_conflicts)
     parser_check_conflicts.set_defaults(func=cmd_check_conflicts)
 
     parser_check_upgrade = subparsers.add_parser('check-upgrade',
             help='Check package is an upgrade',
             description=cmd_check_upgrade.__doc__)
-    parser_check_upgrade.add_argument('rpms', metavar='RPMPATH', nargs='+',
-            help='Path to an RPM package to be checked')
-    parser_check_upgrade.add_argument('--repo', metavar='NAME,REPOPATH',
-            type=comma_separated_repo, action='append', dest='repos',
-            help='Name and path of a repo to test against')
+    add_common_dependency_analyzer_args(parser_check_upgrade)
     parser_check_upgrade.set_defaults(func=cmd_check_upgrade)
 
     parser_list_deps = subparsers.add_parser('list-deps',
             help='List all packages needed to satisfy dependencies',
             description=cmd_list_deps.__doc__)
-    parser_list_deps.add_argument('rpms', metavar='RPMPATH', nargs='+',
-            help='Path to an RPM package to be analyzed')
-    parser_list_deps.add_argument('--repo', metavar='NAME,REPOPATH',
-            type=comma_separated_repo, action='append', dest='repos',
-            help='Name and path of a repo to test against')
+    add_common_dependency_analyzer_args(parser_list_deps)
     parser_list_deps.set_defaults(func=cmd_list_deps)
 
     args = parser.parse_args()
