@@ -42,7 +42,7 @@ def cmd_check(args):
             sys.stderr.write(u'Upgrade problems:\n')
             sys.stderr.write(u'\n'.join(problems) + u'\n')
             failed = True
-    return 1 if failed else 0
+    return 3 if failed else 0
 
 
 def cmd_check_sat(args):
@@ -56,7 +56,7 @@ def cmd_check_sat(args):
         if not ok:
             sys.stderr.write(u'Problems with dependency set:\n')
             sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
-            return 1
+            return 3
     return 0
 
 
@@ -70,7 +70,7 @@ def cmd_check_repoclosure(args):
     if problems:
         sys.stderr.write(u'Dependency problems with repos:\n')
         sys.stderr.write(u'\n'.join(problems) + u'\n')
-        return 1
+        return 3
     return 0
 
 
@@ -83,7 +83,7 @@ def cmd_check_conflicts(args):
     if conflicts:
         sys.stderr.write(u'Undeclared file conflicts:\n')
         sys.stderr.write(u'\n'.join(conflicts) + u'\n')
-        return 1
+        return 3
     return 0
 
 
@@ -97,7 +97,7 @@ def cmd_check_upgrade(args):
     if problems:
         sys.stderr.write(u'Upgrade problems:\n')
         sys.stderr.write(u'\n'.join(problems) + u'\n')
-        return 1
+        return 3
     return 0
 
 
@@ -112,7 +112,7 @@ def cmd_list_deps(args):
         if not ok:
             sys.stderr.write(u'Problems with dependency set:\n')
             sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
-            return 1
+            return 3
 
     package_deps = result.package_dependencies
     for pkg in package_deps.keys():

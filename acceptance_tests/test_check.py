@@ -49,7 +49,7 @@ def test_finds_all_problems(request, dir_server):
     exitcode, out, err = run_rpmdeplint(
             ['rpmdeplint', 'check', '--repo=base,{}'.format(dir_server.url)] +
             [p.get_built_rpm('i386') for p in test_packages])
-    assert exitcode == 1
+    assert exitcode == 3
     assert err == ('Problems with dependency set:\n'
             'nothing provides doesnotexist needed by e-1.0-1.i386\n'
             'Dependency problems with repos:\n'

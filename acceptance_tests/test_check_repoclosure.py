@@ -37,7 +37,7 @@ def test_catches_soname_change(request, dir_server):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
                                          '--repo=base,{}'.format(dir_server.url),
                                          p_newer.get_built_rpm('i386')])
-    assert exitcode == 1
+    assert exitcode == 3
     assert err == ('Dependency problems with repos:\n'
             'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
 
@@ -68,7 +68,7 @@ def test_catches_soname_change_with_package_rename(request, dir_server):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
                                          '--repo=base,{}'.format(dir_server.url),
                                          p_newer.get_built_rpm('i386')])
-    assert exitcode == 1
+    assert exitcode == 3
     assert err == ('Dependency problems with repos:\n'
             'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
 

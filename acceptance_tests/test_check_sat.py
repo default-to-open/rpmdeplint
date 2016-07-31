@@ -28,7 +28,7 @@ def test_shows_error_for_rpms(request, dir_server):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-sat',
                                          '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
-    assert exitcode == 1
+    assert exitcode == 3
     assert err == 'Problems with dependency set:\nnothing provides doesnotexist needed by a-0.1-1.i386\n'
     assert out == ''
 

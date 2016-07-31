@@ -30,7 +30,7 @@ def test_finds_newer_version_in_repo(request, dir_server):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-upgrade',
                                          '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('noarch')])
-    assert exitcode == 1
+    assert exitcode == 3
     assert err == ('Upgrade problems:\n'
             'anaconda-user-help-7.2.2-1.el7.noarch would be upgraded by '
             'anaconda-user-help-19.31.123-1.el7.noarch from repo base\n')
@@ -55,7 +55,7 @@ def test_finds_obsoleting_package_in_repo(request, dir_server):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-upgrade',
                                          '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
-    assert exitcode == 1
+    assert exitcode == 3
     assert err == ('Upgrade problems:\n'
             'a-0.1-1.i386 would be obsoleted by b-0.1-2.i386 from repo base\n')
 

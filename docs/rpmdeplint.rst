@@ -86,8 +86,17 @@ list-deps
 Exit status
 ~~~~~~~~~~~
 
-Zero if all dependencies are satisfiable. Non-zero if dependency errors are
-encountered.
+0
+    Normally, exit status is 0 if rpmdeplint executes successfully.
+
+1
+    Errors that result in tracebacks, such as infrastructure errors.
+
+2
+    Usage error, in case of incorrect use of commands or options.
+
+3
+    Failure of a test.
 
 Examples
 ~~~~~~~~

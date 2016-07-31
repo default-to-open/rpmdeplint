@@ -55,7 +55,7 @@ def test_lists_dependencies_for_rpms_served_from_filesystem(request):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
                                          '--repo=base,{}'.format(baserepo.repoDir),
                                          p1.get_built_rpm('i386')])
-    assert exitcode == 1
+    assert exitcode == 3
 
 
 def test_errors_out_for_unsatisfiable_deps(request, dir_server):
@@ -77,7 +77,30 @@ def test_errors_out_for_unsatisfiable_deps(request, dir_server):
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
                                          '--repo=base,{}'.format(dir_server.url),
                                          p1.get_built_rpm('i386')])
+    assert exitcode == 3
+
+
+def test_rpmdeplint_errors_on_unavailble_url(request):
+    url = 'http://example.test'
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    p1.make()
+
+    def cleanUp():
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
+                                         '--repo=base,{}'.format(url),
+                                         p1.get_built_rpm('i386')])
+
     assert exitcode == 1
+
+
+def test_erroneous_cli_input_errors():
+    exitcode, out , err = run_rpmdeplint(['rpmdeplint', 'list-deps',
+                                          '--derp'])
+
+    assert exitcode == 2
 
 
 def test_rpmdeplint_does_not_leave_repocache_dirs_behind(request, dir_server):
