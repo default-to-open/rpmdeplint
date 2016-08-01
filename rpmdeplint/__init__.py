@@ -120,7 +120,8 @@ class DependencyAnalyzer(object):
             return hawkey.Query(self._sack).filter(nevra=nevra)[0]
 
     def list_latest_packages(self):
-        return hawkey.Query(self._sack).filter(latest_per_arch=True)
+        query = hawkey.Query(self._sack).filter(latest_per_arch=True)
+        return [pkg for pkg in query]
 
     def find_packages_for_repos(self, repos):
         pkgs = self.list_latest_packages()

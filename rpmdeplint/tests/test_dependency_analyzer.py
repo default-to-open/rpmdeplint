@@ -19,6 +19,7 @@ class TestDependencyAnalyzer(TestCase):
 
         pkgs = da.list_latest_packages()
         self.assertEqual(6, len(pkgs))
+        self.assertIs(type(pkgs), list)
 
         want_cinnamon = da.find_packages_that_require('cinnamon')
         self.assertEqual(1, len(want_cinnamon))
