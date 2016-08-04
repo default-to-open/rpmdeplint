@@ -1,8 +1,8 @@
 
-%global upstream_version 1.0
+%global upstream_version 1.1
 
 Name:           rpmdeplint
-Version:        1.0
+Version:        1.1
 Release:        1%{?dist}
 Summary:        Tool to find errors in RPM packages in the context of their dependency graph
 License:        GPLv2+

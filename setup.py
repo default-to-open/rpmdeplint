@@ -10,7 +10,7 @@ class build(_build):
 
 
 name = 'rpmdeplint'
-version = '1.0'
+version = '1.1'
 release = version
 
 setup(name='rpmdeplint',
