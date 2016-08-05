@@ -1,3 +1,5 @@
 include COPYING
+recursive-include rpmdeplint/tests/repos *
 recursive-include acceptance_tests *.py
+recursive-include acceptance_tests/data *
 recursive-include docs *.rst *.py
