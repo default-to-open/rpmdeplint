@@ -88,16 +88,16 @@ class DependencyAnalyzer(object):
         else:
             self._sack = sack
 
+        self.packages = []  #: list of hawkeye.Package to be tested
+        for rpmpath in packages:
+            package = self._sack.add_cmdline_package(rpmpath)
+            self.packages.append(package)
+
         self.repos_by_name = {}  #: mapping of (reponame, rpmdeplint.Repo)
         for repo in repos:
             repo.download_repodata()
             self._sack.load_yum_repo(repo=repo.as_hawkey_repo(), load_filelists=True)
             self.repos_by_name[repo.name] = repo
-
-        self.packages = []  #: list of hawkeye.Package to be tested
-        for rpmpath in packages:
-            package = self._sack.add_cmdline_package(rpmpath)
-            self.packages.append(package)
 
     def __enter__(self):
         return self
