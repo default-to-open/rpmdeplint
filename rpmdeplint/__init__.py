@@ -6,6 +6,7 @@
 
 from __future__ import absolute_import
 
+import os, os.path
 from collections import defaultdict
 import binascii
 import logging
@@ -13,6 +14,7 @@ import six
 from six.moves import map
 import hawkey
 import rpm
+import ctypes
 
 
 logger = logging.getLogger(__name__)
@@ -236,6 +238,9 @@ class DependencyAnalyzer(object):
         Returns True if rpm would allow both the given packages to share 
         ownership of the given filename.
         """
+        if not hasattr(rpm, 'files'):
+            return self._file_conflict_is_permitted_rpm411(left, right, filename)
+
         ts = rpm.TransactionSet()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
 
@@ -248,6 +253,46 @@ class DependencyAnalyzer(object):
                     filename, left, right)
             return True
         if left_files[filename].color != right_files[filename].color:
+            logger.debug('Conflict on %s between %s and %s permitted because colors differ',
+                    filename, left, right)
+            return True
+        return False
+
+    def _file_conflict_is_permitted_rpm411(self, left, right, filename):
+        # In rpm 4.12+ the rpmfilesCompare() function is exposed nicely as the 
+        # rpm.files.matches Python method. In earlier rpm versions there is 
+        # nothing equivalent in the Python bindings, although we can use ctypes 
+        # to poke around and call the older rpmfiCompare() C API directly...
+        librpm = ctypes.CDLL('librpm.so.3')
+        _rpm = ctypes.CDLL(os.path.join(os.path.dirname(rpm.__file__), '_rpm.so'))
+        class rpmfi_s(ctypes.Structure): pass
+        librpm.rpmfiCompare.argtypes = [ctypes.POINTER(rpmfi_s), ctypes.POINTER(rpmfi_s)]
+        librpm.rpmfiCompare.restype = ctypes.c_int
+        _rpm.fiFromFi.argtypes = [ctypes.py_object]
+        _rpm.fiFromFi.restype = ctypes.POINTER(rpmfi_s)
+
+        ts = rpm.TransactionSet()
+        ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
+
+        left_hdr = ts.hdrFromFdno(open(left.location, 'rb'))
+        right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
+        left_fi = rpm.fi(left_hdr)
+        try:
+            while left_fi.FN() != filename:
+                left_fi.next()
+        except StopIteration:
+            raise KeyError('Entry %s not found in %s' % (filename, left))
+        right_fi = rpm.fi(right_hdr)
+        try:
+            while right_fi.FN() != filename:
+                right_fi.next()
+        except StopIteration:
+            raise KeyError('Entry %s not found in %s' % (filename, right))
+        if librpm.rpmfiCompare(_rpm.fiFromFi(left_fi), _rpm.fiFromFi(right_fi)) == 0:
+            logger.debug('Conflict on %s between %s and %s permitted because files match',
+                    filename, left, right)
+            return True
+        if left_fi.FColor() != right_fi.FColor():
             logger.debug('Conflict on %s between %s and %s permitted because colors differ',
                     filename, left, right)
             return True

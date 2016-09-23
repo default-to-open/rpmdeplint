@@ -222,10 +222,20 @@ def test_conflict_is_ignored_if_file_colors_are_different(request, dir_server):
 
     # Make sure we really have different files with different colors
     # (this was surprisingly hard to get right)
-    rpmheader = p1.get_built_rpm_header('i386')
-    assert 1 == rpm.files(rpmheader)['/usr/bin/thing'].color
-    rpmheader = p1.get_built_rpm_header('x86_64')
-    assert 2 == rpm.files(rpmheader)['/usr/bin/thing'].color
+    rpmheader_32 = p1.get_built_rpm_header('i386')
+    rpmheader_64 = p1.get_built_rpm_header('x86_64')
+    if hasattr(rpm, 'files'): # rpm 4.12+
+        assert 1 == rpm.files(rpmheader_32)['/usr/bin/thing'].color
+        assert 2 == rpm.files(rpmheader_64)['/usr/bin/thing'].color
+    else: # sad old rpm < 4.12
+        fi_32 = rpm.fi(rpmheader_32)
+        while fi_32.FN() != '/usr/bin/thing':
+            fi_32.next()
+        assert fi_32.FColor() == 1
+        fi_64 = rpm.fi(rpmheader_64)
+        while fi_64.FN() != '/usr/bin/thing':
+            fi_64.next()
+        assert fi_64.FColor() == 2
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-conflicts',
                                          '--repo=base,{}'.format(dir_server.url),
