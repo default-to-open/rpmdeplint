@@ -123,3 +123,73 @@ def test_warns_on_preexisting_repoclosure_problems(request, dir_server):
     assert exitcode == 0
     assert ('Ignoring pre-existing repoclosure problem: '
             'nothing provides doesnotexist needed by b-0.1-1.i386\n' in err)
+
+
+def test_works_on_different_platform_to_current(request, dir_server):
+    grep = rpmfluff.SimpleRpmBuild('grep', '2.20', '3.el6', ['ppc64'])
+
+    needs_grep = rpmfluff.SimpleRpmBuild('search-tool-5000', '1.0', '3.el6', ['ppc64'])
+    needs_grep.add_requires('grep = 2.20-3.el6')
+
+    baserepo = rpmfluff.YumRepoBuild((grep, needs_grep))
+    baserepo.make('ppc64')
+    dir_server.basepath = baserepo.repoDir
+
+    package_to_test = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['ppc64'])
+    package_to_test.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(grep.get_base_dir())
+        shutil.rmtree(needs_grep.get_base_dir())
+        shutil.rmtree(package_to_test.get_base_dir())
+
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         package_to_test.get_built_rpm('ppc64')])
+
+    assert exitcode == 0
+    assert out == ''
+    assert err == ''
+
+
+def test_arch_set_manually_is_passed_to_sack(request, dir_server):
+    grep = rpmfluff.SimpleRpmBuild('grep', '2.20', '3.el6', ['i686'])
+
+    needs_grep = rpmfluff.SimpleRpmBuild('search-tool-5000', '1.0', '3.el6', ['i686'])
+    needs_grep.add_requires('grep = 2.20-3.el6')
+
+    package_to_test = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['i586'])
+    package_to_test.make()
+
+    baserepo = rpmfluff.YumRepoBuild((grep, needs_grep))
+    baserepo.make('i686')
+    dir_server.basepath = baserepo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(grep.get_base_dir())
+        shutil.rmtree(needs_grep.get_base_dir())
+        shutil.rmtree(package_to_test.get_base_dir())
+
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--arch=i586',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         package_to_test.get_built_rpm('i586')])
+
+    assert exitcode == 0
+    assert out == ''
+    assert err == ''
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--arch=i686',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         package_to_test.get_built_rpm('i586')])
+
+    assert exitcode == 0
+    assert out == ''
+    assert err == ''

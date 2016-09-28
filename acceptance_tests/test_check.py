@@ -5,9 +5,7 @@
 # (at your option) any later version.
 
 import shutil
-import rpm
 import rpmfluff
-import os.path
 from data_setup import run_rpmdeplint
 
 
@@ -58,3 +56,23 @@ def test_finds_all_problems(request, dir_server):
             'f-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'Upgrade problems:\n'
             'a-4.0-1.i386 would be upgraded by a-5.0-1.i386 from repo base\n')
+
+
+def test_raises_error_on_mismatched_architecture_rpms(request, dir_server):
+    test_tool_rpm = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['ppc64', 'x86_64'])
+    test_tool_rpm.make()
+
+    def cleanUp():
+        shutil.rmtree(test_tool_rpm.get_base_dir())
+
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint([
+        'rpmdeplint', 'check', '--repo=doesntmatter,http://fakeurl',
+        test_tool_rpm.get_built_rpm('ppc64'), test_tool_rpm.get_built_rpm('x86_64')
+    ])
+
+    assert 'Testing multiple incompatible package architectures is not currently supported' in err
+    assert 'x86_64' in err
+    assert 'ppc64' in err
+    assert exitcode == 2

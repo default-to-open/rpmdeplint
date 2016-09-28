@@ -10,7 +10,7 @@ import sys
 import logging
 import argparse
 
-from rpmdeplint import DependencyAnalyzer
+from rpmdeplint import DependencyAnalyzer, get_hawkey_package_arch
 from rpmdeplint.repodata import Repo
 
 logger = logging.getLogger(__name__)
@@ -136,7 +136,17 @@ def dependency_analyzer_from_args(args):
         repos.extend(Repo.from_yum_config())
     repos.extend(args.repos)
     rpms = list(args.rpms)
-    return DependencyAnalyzer(repos, rpms)
+    if not args.arch:
+        sack_arches = {get_hawkey_package_arch(rpm) for rpm in rpms}
+        if len(sack_arches) >= 2:
+            raise argparse.ArgumentTypeError(
+                u"Testing multiple incompatible package architectures is "
+                u"not currently supported {}".format(sack_arches))
+        arch = sack_arches.pop()
+    else:
+        arch = args.arch
+
+    return DependencyAnalyzer(repos, rpms, arch=arch)
 
 
 def comma_separated_repo(value):
@@ -155,6 +165,8 @@ def add_common_dependency_analyzer_args(parser):
             help='Name and path of a repo to test against')
     parser.add_argument('--repos-from-system', action='store_true',
             help='Test against system repos from /etc/yum.repos.d/')
+    parser.add_argument('--arch', dest='arch', default=None,
+            help='Test against ARCH [default: determined from RPM packages]')
 
 
 def main():
@@ -204,7 +216,11 @@ def main():
     logging.getLogger().setLevel(logging.DEBUG)
     log_to_stream(sys.stderr, level=logging.DEBUG if args.debug else logging.WARNING)
 
-    return args.func(args)
+    try:
+        return args.func(args)
+    except argparse.ArgumentTypeError as exc:
+        logger.error(exc)
+        return 2
 
 if __name__ == '__main__':
     sys.exit(main())

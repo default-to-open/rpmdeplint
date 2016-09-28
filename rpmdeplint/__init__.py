@@ -20,6 +20,32 @@ import ctypes
 logger = logging.getLogger(__name__)
 
 
+arch_map = {'ia64':'ia64', 'noarch': 'noarch'}
+arch_map.update({a: 'armv7l' for a in ["armv7l", "armv6l", "armv5tejl", "armv5tel", "armv5l", "armv4tl", "armv4l", "armv3l" ]})
+arch_map.update({a: 'x86_64' for a in ["amd64", "x86_64", "athlon", "i686", "geode", "i586", "i486", "i386"]})
+arch_map.update({a: 'sparc64v' for a in ["sparc64v", "sparc64", "sparcv9v", "sparcv9", "sparcv8", "sparc"]})
+arch_map.update({a: 'armv7hnl' for a in ["armv7hnl", "armv7hl", "armv6hl" ]})
+arch_map.update({a: 'ppc64p7' for a in ["ppc64p7", "ppc64", "ppc"]})
+arch_map.update({a: 's390x' for a in ["s390x", "s390"]})
+arch_map.update({a: 'sh4a' for a in ["sh4a", "sh4" ]})
+
+
+def get_hawkey_package_arch(package_name):
+    """:param package_name: Package name to determine the arch of."""
+    ts = rpm.TransactionSet()
+    ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
+    with open(package_name, 'rb') as fin:
+        rpm_file = ts.hdrFromFdno(fin)
+    pkg_arch = rpm_file[rpm.RPMTAG_ARCH].decode('utf8')
+
+    try:
+        return arch_map[pkg_arch]
+    except KeyError:
+        raise AttributeError(
+            'Architecture was not correctly determined for {} arch was {}'.format(
+                package_name, pkg_arch))
+
+
 class DependencySet(object):
     def __init__(self):
         self._packagedeps = defaultdict(lambda: dict(dependencies=[],problems=[]))
@@ -78,13 +104,16 @@ class DependencyAnalyzer(object):
     repository data. The cache directory will be cleaned upon exit.
     """
 
-    def __init__(self, repos, packages, sack=None):
+    def __init__(self, repos, packages, sack=None, arch=None):
         """
         :param repos: An iterable of rpmdeplint.repodata.Repo instances
         :param packages: An iterable of rpm package paths.
         """
         if sack is None:
-            self._sack = hawkey.Sack(make_cache_dir=True)
+            if arch is not None:
+                self._sack = hawkey.Sack(make_cache_dir=True, arch=arch)
+            else:
+                self._sack = hawkey.Sack(make_cache_dir=True)
         else:
             self._sack = sack
 
@@ -193,6 +222,11 @@ class DependencyAnalyzer(object):
                 continue # checked by check-sat command instead
             if pkg in obsoleted:
                 continue # no reason to check it
+            if pkg.arch not in self._sack.list_arches():
+                logger.debug(
+                    'Skipping requirements for package {} arch does not match '
+                    'Architecture under test'.format(six.text_type(pkg)))
+                continue
             logger.debug('Checking requires for %s', pkg)
             # XXX limit available packages to compatible arches?
             # (use libsolv archpolicies somehow)
