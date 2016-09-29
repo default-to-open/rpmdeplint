@@ -10,6 +10,8 @@ import os
 import logging
 import tempfile
 import shutil
+import glob
+from six.moves import configparser
 import librepo
 import hawkey
 
@@ -27,11 +29,85 @@ class PackageDownloadError(Exception):
     pass
 
 
+def get_yumvars():
+    # This is not all the yumvars, but hopefully good enough...
+
+    try:
+        import dnf, dnf.rpm
+    except ImportError:
+        pass
+    else:
+        return {
+            'arch': hawkey.detect_arch(),
+            'basearch': dnf.rpm.basearch(hawkey.detect_arch()),
+            'releasever': dnf.rpm.detect_releasever('/'),
+        }
+
+    try:
+        import yum, yum.config, rpmUtils
+    except ImportError:
+        pass
+    else:
+        return {
+            'arch': rpmUtils.arch.getCanonArch(),
+            'basearch': rpmUtils.arch.getBaseArch(),
+            'releasever': yum.config._getsysver('/',
+                ['system-release(releasever)', 'redhat-release']),
+        }
+
+    # Probably not going to work but there's not much else we can do...
+    return {
+        'arch': '$arch',
+        'basearch': '$basearch',
+        'releasever': '$releasever',
+    }
+
+
+def substitute_yumvars(s, yumvars):
+    for name, value in yumvars.items():
+        s = s.replace('$' + name, value)
+    return s
+
+
 class Repo(object):
 
-    def __init__(self, repo_name, metadata_path):
+    yum_main_config_path = '/etc/yum.conf'
+    yum_repos_config_glob = '/etc/yum.repos.d/*.repo'
+
+    @classmethod
+    def from_yum_config(cls):
+        """
+        Yields Repo instances loaded from the system-wide Yum 
+        configuration in /etc/yum.conf and /etc/yum.repos.d/.
+        """
+        yumvars = get_yumvars()
+        config = configparser.RawConfigParser()
+        config.read([cls.yum_main_config_path] + glob.glob(cls.yum_repos_config_glob))
+        for section in config.sections():
+            if section == 'main':
+                continue
+            if (config.has_option(section, 'enabled') and
+                    not config.getboolean(section, 'enabled')):
+                continue
+            if config.has_option(section, 'baseurl'):
+                baseurl = substitute_yumvars(config.get(section, 'baseurl'), yumvars)
+                yield cls(section, baseurl=baseurl)
+            elif config.has_option(section, 'metalink'):
+                metalink = substitute_yumvars(config.get(section, 'metalink'), yumvars)
+                yield cls(section, metalink=metalink)
+            elif config.has_option(section, 'mirrorlist'):
+                mirrorlist = substitute_yumvars(config.get(section, 'mirrorlist'), yumvars)
+                yield cls(section, metalink=mirrorlist)
+            else:
+                raise ValueError('Yum config section %s has no '
+                        'baseurl or metalink or mirrorlist' % section)
+
+    def __init__(self, repo_name, baseurl=None, metalink=None):
         self.name = repo_name
-        self.metadata_path = metadata_path
+        if not baseurl and not metalink:
+            raise RuntimeError('Must specify either baseurl or metalink for repo')
+        self.baseurl = baseurl
+        self.metalink = metalink
 
     def as_hawkey_repo(self):
         repo = hawkey.Repo(self.name)
@@ -41,16 +117,20 @@ class Repo(object):
         return repo
 
     def download_repodata(self):
-        logger.debug('Loading repodata for %s from %s', self.name, self.metadata_path)
+        logger.debug('Loading repodata for %s from %s', self.name,
+                self.baseurl or self.metalink)
         self.librepo_handle = h = librepo.Handle()
         r = librepo.Result()
         h.repotype = librepo.LR_YUMREPO
         h.setopt(librepo.LRO_YUMDLIST, ["filelists", "primary"])
-        h.urls = [self.metadata_path]
+        if self.baseurl:
+            h.urls = [self.baseurl]
+        if self.metalink:
+            h.mirrorlist = self.metalink
         h.setopt(librepo.LRO_INTERRUPTIBLE, True)
 
-        if os.path.isdir(self.metadata_path):
-            self._root_path = self.metadata_path
+        if self.baseurl and os.path.isdir(self.baseurl):
+            self._root_path = self.baseurl
             h.local = True
         else:
             self._root_path = h.destdir = tempfile.mkdtemp(

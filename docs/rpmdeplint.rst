@@ -23,6 +23,14 @@ Options
    choose. The path must either be a filesystem path or a URL. In either case,
    the path is expected to point at `repodata/repomd.xml`.
 
+.. option:: --repos-from-system
+
+   Use yum repos from the system-wide configuration in :file:`/etc/yum.conf` 
+   and :file:`/etc/yum.repos.d/{*}.repo`. Repos which are disabled in the 
+   configuration (``enabled=0``) are ignored.
+
+   This option can be combined with one or more :option:`--repo` options.
+
 Arguments
 ~~~~~~~~~
 

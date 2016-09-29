@@ -21,7 +21,7 @@ def cmd_check(args):
     Performs all checks on the given packages.
     """
     failed = False
-    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+    with dependency_analyzer_from_args(args) as analyzer:
         ok, result = analyzer.try_to_install_all()
         if not ok:
             sys.stderr.write(u'Problems with dependency set:\n')
@@ -50,7 +50,7 @@ def cmd_check_sat(args):
     Checks that all dependencies needed to install the given packages
     can be satisfied using the given repos.
     """
-    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+    with dependency_analyzer_from_args(args) as analyzer:
         ok, result = analyzer.try_to_install_all()
 
         if not ok:
@@ -65,7 +65,7 @@ def cmd_check_repoclosure(args):
     Checks that all dependencies of all packages in the given repos can still 
     be satisfied, when the given packages are included.
     """
-    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+    with dependency_analyzer_from_args(args) as analyzer:
         problems = analyzer.find_repoclosure_problems()
     if problems:
         sys.stderr.write(u'Dependency problems with repos:\n')
@@ -78,7 +78,7 @@ def cmd_check_conflicts(args):
     """
     Checks for undeclared file conflicts in the given packages.
     """
-    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+    with dependency_analyzer_from_args(args) as analyzer:
         conflicts = analyzer.find_conflicts()
     if conflicts:
         sys.stderr.write(u'Undeclared file conflicts:\n')
@@ -92,7 +92,7 @@ def cmd_check_upgrade(args):
     Checks that the given packages are not older than any other existing
     package in the repos.
     """
-    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+    with dependency_analyzer_from_args(args) as analyzer:
         problems = analyzer.find_upgrade_problems()
     if problems:
         sys.stderr.write(u'Upgrade problems:\n')
@@ -107,7 +107,7 @@ def cmd_list_deps(args):
     the complete set of dependent packages which are needed
     in order to install the packages under test.
     """
-    with DependencyAnalyzer(args.repos, args.rpms) as analyzer:
+    with dependency_analyzer_from_args(args) as analyzer:
         ok, result = analyzer.try_to_install_all()
         if not ok:
             sys.stderr.write(u'Problems with dependency set:\n')
@@ -130,6 +130,15 @@ def log_to_stream(stream, level=logging.WARNING):
     logging.getLogger().handlers = [stream_handler]
 
 
+def dependency_analyzer_from_args(args):
+    repos = []
+    if args.repos_from_system:
+        repos.extend(Repo.from_yum_config())
+    repos.extend(args.repos)
+    rpms = list(args.rpms)
+    return DependencyAnalyzer(repos, rpms)
+
+
 def comma_separated_repo(value):
     if ',' not in value:
         raise argparse.ArgumentTypeError(
@@ -141,8 +150,11 @@ def add_common_dependency_analyzer_args(parser):
     parser.add_argument('rpms', metavar='RPMPATH', nargs='+',
             help='Path to an RPM package to be checked')
     parser.add_argument('--repo', metavar='NAME,REPOPATH',
-            type=comma_separated_repo, action='append', dest='repos',
+            type=comma_separated_repo,
+            action='append', dest='repos', default=[],
             help='Name and path of a repo to test against')
+    parser.add_argument('--repos-from-system', action='store_true',
+            help='Test against system repos from /etc/yum.repos.d/')
 
 
 def main():
