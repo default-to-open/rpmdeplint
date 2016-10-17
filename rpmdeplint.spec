@@ -12,11 +12,6 @@ BuildArch:      noarch
 BuildRequires:  python2-devel
 BuildRequires:  python-sphinx
 BuildRequires:  pytest
-BuildRequires:  python-rpmfluff
-%ifarch x86_64
-BuildRequires:  glibc-devel.i686
-BuildRequires:  libgcc.i686
-%endif
 BuildRequires:  python-six
 BuildRequires:  rpm-python
 BuildRequires:  python-hawkey
@@ -42,10 +37,7 @@ rm -rf rpmdeplint.egg-info
 
 %check
 py.test rpmdeplint
-# Acceptance tests currently broken inside mock, due to rpmfluff:
-# https://pagure.io/rpmfluff/pull-request/4
-#export PATH=%%{buildroot}%%{_bindir}:$PATH PYTHONPATH=%%{buildroot}%%{python2_sitelib}
-#py.test acceptance_tests
+# Acceptance tests do not work in mock because they require .i686 packages.
 
 %files
 %license COPYING
