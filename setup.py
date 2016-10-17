@@ -9,6 +9,8 @@ class build(_build):
     sub_commands = _build.sub_commands + [('build_sphinx', lambda self: True)]
 
 
+# Note that we have some scripts which programmatically change the version
+# declared here. Do not adjust the formatting.
 name = 'rpmdeplint'
 version = '1.2'
 release = version

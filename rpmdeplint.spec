@@ -32,7 +32,7 @@ dependency graph.
 
 %prep
 %setup -q -n %{name}-%{upstream_version}
-rm -r rpmdeplint.egg-info
+rm -rf rpmdeplint.egg-info
 
 %build
 %py2_build
