@@ -1,6 +1,21 @@
 Changelog
 ---------
 
+1.2
+~~~
+
+* Added a new option ``--repos-from-system`` for testing against repositories
+  from the system-wide Yum/DNF configuration.
+
+* Conflict checking now works correctly with RPM 4.11 (as found on Red Hat
+  Enterprise Linux 7 and derivatives). Previously it was relying on an API only
+  present in RPM 4.12+.
+
+* Fixed spurious errors/warnings from ``check-repoclosure`` when the arch of
+  the packages being tested did not match the host architecture where
+  rpmdeplint was run
+  (`RHBZ#1378253 <https://bugzilla.redhat.com/show_bug.cgi?id=1378253>`__).
+
 1.1
 ~~~
 
