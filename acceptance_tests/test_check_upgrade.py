@@ -29,6 +29,7 @@ def test_finds_newer_version_in_repo(request, dir_server):
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-upgrade',
                                          '--repo=base,{}'.format(dir_server.url),
+                                         '--arch=x86_64',
                                          p1.get_built_rpm('noarch')])
     assert exitcode == 3
     assert err == ('Upgrade problems:\n'
@@ -79,6 +80,7 @@ def test_epoch(request, dir_server):
 
     exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-upgrade',
                                          '--repo=base,{}'.format(dir_server.url),
+                                         '--arch=x86_64',
                                          p1.get_built_rpm('noarch')])
     assert exitcode == 0
     assert err == ''

@@ -76,3 +76,52 @@ def test_raises_error_on_mismatched_architecture_rpms(request, dir_server):
     assert 'x86_64' in err
     assert 'ppc64' in err
     assert exitcode == 2
+
+
+def test_raises_error_for_noarch_rpms_without_arch_specified(request, dir_server):
+    # This is an error because if rpmdeplint is only given noarch rpms,
+    # it cannot guess which arch you want to test them against.
+    # The caller has to pass --arch explicitly in this case.
+    p_noarch = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['noarch'])
+    p_noarch.make()
+
+    def cleanUp():
+        shutil.rmtree(p_noarch.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint([
+        'rpmdeplint', 'check', '--repo=doesntmatter,http://fakeurl',
+        p_noarch.get_built_rpm('noarch')
+    ])
+    assert exitcode == 2, err
+    assert 'Cannot determine test arch from noarch packages, pass --arch option explicitly' in err
+
+
+def test_guesses_arch_when_combined_with_noarch_package(request, dir_server):
+    # A more realistic case is an archful package with a noarch subpackage,
+    # but rpmfluff currently can't produce that.
+    p_noarch = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['noarch'])
+    p_noarch.add_requires('libfoo.so.4')
+    p_noarch.make()
+    p_archful = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    p_archful.add_requires('libfoo.so.4')
+    p_archful.make()
+
+    baserepo = rpmfluff.YumRepoBuild([])
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p_noarch.get_base_dir())
+        shutil.rmtree(p_archful.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint([
+        'rpmdeplint', 'check', '--repo=base,{}'.format(dir_server.url),
+        p_noarch.get_built_rpm('noarch'), p_archful.get_built_rpm('i386')
+    ])
+    assert exitcode == 3, err
+    assert err == ('Problems with dependency set:\n'
+            'nothing provides libfoo.so.4 needed by a-0.1-1.noarch\n'
+            'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')

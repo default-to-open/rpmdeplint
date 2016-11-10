@@ -137,11 +137,15 @@ def dependency_analyzer_from_args(args):
     repos.extend(args.repos)
     rpms = list(args.rpms)
     if not args.arch:
-        sack_arches = {get_hawkey_package_arch(rpm) for rpm in rpms}
+        sack_arches = {get_hawkey_package_arch(rpm) for rpm in rpms} - {'noarch'}
         if len(sack_arches) >= 2:
             raise argparse.ArgumentTypeError(
                 u"Testing multiple incompatible package architectures is "
-                u"not currently supported {}".format(sack_arches))
+                u"not currently supported: {}".format(', '.join(sack_arches)))
+        if not sack_arches:
+            raise argparse.ArgumentTypeError(
+                'Cannot determine test arch from noarch packages, '
+                'pass --arch option explicitly')
         arch = sack_arches.pop()
     else:
         arch = args.arch
