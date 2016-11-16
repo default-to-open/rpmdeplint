@@ -6,9 +6,21 @@
 
 import os
 import os.path
+import logging
 import wsgiref.simple_server
 from threading import Thread
 import pytest
+
+logger = logging.getLogger(__name__)
+
+
+class NonSpewingWSGIRequestHandler(wsgiref.simple_server.WSGIRequestHandler):
+
+    def log_message(self, format, *args):
+        # The default implementation writes to stderr, which makes a mess in 
+        # the test suite. Use stdlib logging instead so that it can be captured 
+        # with everything else.
+        logger.info(format, *args)
 
 
 class WSGIServer(Thread):
@@ -20,7 +32,8 @@ class WSGIServer(Thread):
 
     def __init__(self, host='127.0.0.1', port=0, application=None, **kwargs):
         self.app = application
-        self._server = wsgiref.simple_server.make_server(host, port, self.app, **kwargs)
+        self._server = wsgiref.simple_server.make_server(host, port, self.app,
+                handler_class=NonSpewingWSGIRequestHandler, **kwargs)
         self.server_address = self._server.server_address
 
         super(WSGIServer, self).__init__(
