@@ -116,7 +116,7 @@ def cmd_list_deps(args):
 
     package_deps = result.package_dependencies
     for pkg in package_deps.keys():
-        deps = sorted(package_deps[pkg]['dependencies'])
+        deps = package_deps[pkg]['dependencies']
         sys.stdout.write(u"%s has %s dependencies:\n" % (pkg, len(deps)))
         sys.stdout.write(u"\n".join(["\t" + x for x in deps]))
         sys.stdout.write(u"\n\n")

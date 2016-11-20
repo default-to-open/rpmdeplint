@@ -68,15 +68,15 @@ class DependencySet(object):
 
     @property
     def packages(self):
-        return list(self._packagedeps.keys())
+        return sorted(self._packagedeps.keys())
 
     @property
     def overall_problems(self):
-        return list(self._overall_problems)
+        return sorted(self._overall_problems)
 
     @property
     def packages_with_problems(self):
-        return list(self._packages_with_problems)
+        return sorted(self._packages_with_problems)
 
     @property
     def package_dependencies(self):
@@ -84,16 +84,16 @@ class DependencySet(object):
 
     @property
     def repository_dependencies(self):
-        return {key:list(value) for key, value in self._repodeps.items()}
+        return {key: sorted(value) for key, value in self._repodeps.items()}
 
     def repository_for_package(self, pkg):
         return self._package_repo[pkg]
 
     def dependencies_for_repository(self, reponame):
-        return list(self._repodeps[reponame])
+        return sorted(self._repodeps[reponame])
 
     def dependencies_for_package(self, nevra):
-        return self._packagedeps[nevra]['dependencies']
+        return sorted(self._packagedeps[nevra]['dependencies'])
 
 
 class DependencyAnalyzer(object):
@@ -248,7 +248,7 @@ class DependencyAnalyzer(object):
                         logger.warn('Ignoring pre-existing repoclosure problem: %s', problem_msg)
                     else:
                         problems.append(problem_msg)
-        return problems
+        return sorted(problems)
 
     def _packages_have_explicit_conflict(self, left, right):
         """
@@ -350,7 +350,7 @@ class DependencyAnalyzer(object):
                     if not self._file_conflict_is_permitted(package, conflicting, filename):
                         problems.append(u'{} provides {} which is also provided by {}'.format(
                                 six.text_type(package), filename, six.text_type(conflicting)))
-        return problems
+        return sorted(problems)
 
     def find_upgrade_problems(self):
         """
@@ -367,4 +367,4 @@ class DependencyAnalyzer(object):
             for obsoleting in hawkey.Query(self._sack).filter(obsoletes=[package]):
                 problems.append(u'{} would be obsoleted by {} from repo {}'.format(
                         six.text_type(package), six.text_type(obsoleting), obsoleting.reponame))
-        return problems
+        return sorted(problems)
