@@ -9,12 +9,13 @@ from __future__ import absolute_import
 import sys
 import logging
 import argparse
-
+import pkg_resources
 from rpmdeplint import DependencyAnalyzer, get_hawkey_package_arch
 from rpmdeplint.repodata import Repo
 
 logger = logging.getLogger(__name__)
 
+version = pkg_resources.require('rpmdeplint')[0].version
 
 def cmd_check(args):
     """
@@ -175,11 +176,11 @@ def add_common_dependency_analyzer_args(parser):
 
 def main():
     parser = argparse.ArgumentParser(description='Checks for errors in '
-            'RPM packages in the context of their dependency graph.')
+            'RPM packages in the context of their dependency graph.', prog='rpmdeplint')
     parser.add_argument('--debug', action='store_true',
             help='Show detailed progress messages')
     subparsers = parser.add_subparsers(title='subcommands')
-
+    parser.add_argument('--version', action='version', version='%(prog)s ' + version)
     parser_check = subparsers.add_parser('check',
             help='Perform all checks',
             description=cmd_check.__doc__)
