@@ -188,15 +188,10 @@ def test_conflict_not_ignored_if_contents_match_but_perms_differ(request, dir_se
                                          different_group.get_built_rpm('i386')])
     assert exitcode == 3
     assert err == ('Undeclared file conflicts:\n'
-            'x-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'x-0.1-1.i386 provides /usr/share/thing which is also provided by y-0.1-1.i386\n'
-            'x-0.1-1.i386 provides /usr/share/thing which is also provided by z-0.1-1.i386\n'
-            'y-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'y-0.1-1.i386 provides /usr/share/thing which is also provided by x-0.1-1.i386\n'
-            'y-0.1-1.i386 provides /usr/share/thing which is also provided by z-0.1-1.i386\n'
-            'z-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'z-0.1-1.i386 provides /usr/share/thing which is also provided by x-0.1-1.i386\n'
-            'z-0.1-1.i386 provides /usr/share/thing which is also provided by y-0.1-1.i386\n')
+            )
 
 
 def test_conflict_is_ignored_if_file_colors_are_different(request, dir_server):

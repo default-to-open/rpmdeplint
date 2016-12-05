@@ -341,15 +341,23 @@ class DependencyAnalyzer(object):
         problems = []
         for package in self.packages:
             for filename in package.files:
-                for conflicting in hawkey.Query(self._sack).filter(file=filename, latest_per_arch=True):
+                conflicting_packages = hawkey.Query(self._sack).filter(file=filename, latest_per_arch=True)
+                for i, conflicting in enumerate(conflicting_packages, 1):
                     if conflicting == package:
                         continue
                     if self._packages_have_explicit_conflict(package, conflicting):
                         continue
                     logger.debug('Considering conflict on %s with %s', filename, conflicting)
+                    conflicting_amount = len(conflicting_packages) - i
                     if not self._file_conflict_is_permitted(package, conflicting, filename):
-                        problems.append(u'{} provides {} which is also provided by {}'.format(
-                                six.text_type(package), filename, six.text_type(conflicting)))
+                        msg = u'{} provides {} which is also provided by {}'.format(
+                            six.text_type(package), filename, six.text_type(conflicting))
+                        problems.append(msg)
+
+                    if conflicting_amount:
+                        logger.debug('Skipping {} further conflict checks on {} for {}'.format(
+                            conflicting_amount, six.text_type(package), filename))
+                    break
         return sorted(problems)
 
     def find_upgrade_problems(self):
