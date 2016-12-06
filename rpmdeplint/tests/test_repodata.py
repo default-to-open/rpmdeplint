@@ -5,7 +5,7 @@
 # (at your option) any later version.
 
 import pytest
-from rpmdeplint.repodata import Repo
+from rpmdeplint.repodata import Repo, RepoDownloadError
 
 
 @pytest.fixture
@@ -74,3 +74,15 @@ def test_loads_system_yum_repo_with_substitutions(yumdir, monkeypatch):
     assert len(repos) == 1
     assert repos[0].name == 'dummy'
     assert repos[0].baseurl == 'http://example.invalid/21/s390x/'
+
+def test_bad_repo_url_raises_error(yumdir):
+    yumdir.join('yum.repos.d', 'dummy.repo').write(
+            '[dummy]\nname=Dummy\nbaseurl=http://example.invalid/dummy\nenabled=1\n',
+            ensure=True)
+
+    repos = list(Repo.from_yum_config())
+    assert len(repos) == 1
+    with pytest.raises(RepoDownloadError) as rde:
+        repos[0].download_repodata()
+    assert 'Cannot download repomd.xml' in str(rde.value)
+    assert 'Repo Name: dummy' in str(rde.value)

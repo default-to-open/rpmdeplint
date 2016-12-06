@@ -28,6 +28,12 @@ class PackageDownloadError(Exception):
     """
     pass
 
+class RepoDownloadError(Exception):
+    """
+    Raised if an error occurs downloading repodata
+    """
+    def __init__(self, repo, message):
+        super(RepoDownloadError, self).__init__("{0}\n{1}".format(message, repo))
 
 def get_yumvars():
     # This is not all the yumvars, but hopefully good enough...
@@ -135,7 +141,11 @@ class Repo(object):
         else:
             self._root_path = h.destdir = tempfile.mkdtemp(
                 self.name, prefix=REPO_CACHE_NAME_PREFIX, dir=REPO_CACHE_DIR)
-        h.perform(r)
+        try:
+            h.perform(r)
+        except librepo.LibrepoException as ex:
+            raise RepoDownloadError(self, str(ex))
+
         self._yum_repomd = r.yum_repomd
 
     def download_package(self, location, checksum_type, checksum):
@@ -184,3 +194,13 @@ class Repo(object):
     @property
     def filelists_fn(self):
         return os.path.join(self._root_path, self.yum_repomd['filelists']['location_href'])
+
+    def __str__(self):
+        strrep = ["Repo Name: {0}".format(self.name),
+                  "Baseurl: {0}".format(self.baseurl),
+                  "Metalink: {0}".format(self.metalink)]
+        if hasattr(self, 'yum_repomd'):
+            strrep.append("repomd_fn: {0}".format(self.repomd_fn))
+            strrep.append("primary_fn: {0}".format(self.primary_fn))
+            strrep.append("filelists_fn: {0}".format(self.filelists_fn))
+        return "\n".join(strrep)
