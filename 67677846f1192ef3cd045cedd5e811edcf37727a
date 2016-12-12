@@ -1,0 +1,9 @@
+Ready-for-Checks+1: Tyrone Abdy <tabdy@redhat.com>
+Code-Review+1: Blake McIvor <bmcivor@redhat.com>
+Code-Review+2: Dan Callaghan <dcallagh@redhat.com>
+Verified+1: Tyrone Abdy <tabdy@redhat.com>
+Submitted-by: Tyrone Abdy <tabdy@redhat.com>
+Submitted-at: Mon, 12 Dec 2016 23:46:39 +0000
+Reviewed-on: https://gerrit.beaker-project.org/5496
+Project: rpmdeplint
+Branch: refs/heads/master
