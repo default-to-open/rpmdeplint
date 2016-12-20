@@ -75,6 +75,7 @@ def test_loads_system_yum_repo_with_substitutions(yumdir, monkeypatch):
     assert repos[0].name == 'dummy'
     assert repos[0].baseurl == 'http://example.invalid/21/s390x/'
 
+
 def test_bad_repo_url_raises_error(yumdir):
     yumdir.join('yum.repos.d', 'dummy.repo').write(
             '[dummy]\nname=Dummy\nbaseurl=http://example.invalid/dummy\nenabled=1\n',
@@ -86,3 +87,9 @@ def test_bad_repo_url_raises_error(yumdir):
         repos[0].download_repodata()
     assert 'Cannot download repomd.xml' in str(rde.value)
     assert 'Repo Name: dummy' in str(rde.value)
+
+
+def test_set_cache_expiry_in_seconds(monkeypatch):
+    monkeypatch.setenv('RPMDEPLINT_EXPIRY_SECONDS', '100')
+    repo = Repo(repo_name='Dummy', baseurl='http://example.invalid/dummy')
+    assert repo.expiry_seconds == 100

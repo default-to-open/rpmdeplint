@@ -4,6 +4,9 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import os
+import glob
+import time
 import shutil
 import rpmfluff
 from data_setup import run_rpmdeplint
@@ -19,7 +22,6 @@ def test_finds_all_problems(request, dir_server):
     p_depending = rpmfluff.SimpleRpmBuild('d', '0.1', '1', ['i386'])
     p_depending.add_requires('libfoo.so.4')
     repo_packages = [p_newer, p_with_content, p_old_soname, p_depending]
-
     baserepo = rpmfluff.YumRepoBuild(repo_packages)
     baserepo.make('i386')
     dir_server.basepath = baserepo.repoDir
@@ -125,3 +127,96 @@ def test_guesses_arch_when_combined_with_noarch_package(request, dir_server):
     assert err == ('Problems with dependency set:\n'
             'nothing provides libfoo.so.4 needed by a-0.1-1.noarch\n'
             'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
+
+
+def test_cache_is_used_when_available(request, dir_server):
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    baserepo = rpmfluff.YumRepoBuild((p1,))
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    # Assuming cache is cleaned first
+    assert dir_server.num_requests == 0
+
+    run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
+        dir_server.url), p1.get_built_rpm('i386')])
+
+    # A single run of rpmdeplint with a clean cache should expect network
+    # requests for - repomd.xml, primary.xml.gz and filelists.xml.gz. Requiring
+    # a total of 3
+    assert dir_server.num_requests == 3
+
+    run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
+        dir_server.url), p1.get_built_rpm('i386')])
+
+    # Executing 2 subprocesses should expect 4 requests if repodata cache is
+    # functioning correctly. A single request for each file in the repo
+    # - repomd.xml, primary.xml.gz, filelists.xml.gz, with an additional
+    # request from the second process checking metadata. The additional
+    # single request shows that the files are skipped in the second process
+    assert dir_server.num_requests == 4
+
+
+def test_cache_doesnt_grow_unboundedly(request, dir_server):
+    os.environ['RPMDEPLINT_EXPIRY_SECONDS'] = '1'
+    base_cache_dir = os.path.join(os.environ.get('XDG_CACHE_HOME',
+        os.path.join(os.path.expanduser('~'), '.cache')), 'rpmdeplint')
+
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    firstrepo = rpmfluff.YumRepoBuild((p1, ))
+    firstrepo.make('i386')
+    dir_server.basepath = firstrepo.repoDir
+
+    run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
+        dir_server.url), p1.get_built_rpm('i386')])
+
+    def get_file_cache_path(repodir, file_type):
+        temp_path = glob.iglob(os.path.join(repodir, 'repodata', file_type))
+        primary_fn = os.path.basename(next(temp_path))
+        primary_fn_checksum = primary_fn.split('-')[0]
+        return os.path.join(base_cache_dir, primary_fn_checksum[:1],
+            primary_fn_checksum[1:], primary_fn)
+
+    # files are stored in cache_path /.cache/checksum[1:]/checksum[:1]
+    first_primary_cache_path = get_file_cache_path(firstrepo.repoDir,
+        '*-primary.xml.gz')
+    first_filelists_cache_path = get_file_cache_path(firstrepo.repoDir,
+        '*-filelists.xml.gz')
+
+    assert os.path.exists(first_primary_cache_path)
+    assert os.path.exists(first_filelists_cache_path)
+
+    p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    secondrepo = rpmfluff.YumRepoBuild((p2, ))
+    secondrepo.make('i386')
+    dir_server.basepath = secondrepo.repoDir
+
+    # ensure time period of cache has expired
+    time.sleep(2)
+
+    def cleanUp():
+        shutil.rmtree(firstrepo.repoDir)
+        shutil.rmtree(secondrepo.repoDir)
+        shutil.rmtree(p1.get_base_dir())
+        shutil.rmtree(p2.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
+        dir_server.url), p2.get_built_rpm('i386')])
+
+    # files are stored in cache_path /.cache/checksum[1:]/checksum[:1]
+    second_primary_cache_path = get_file_cache_path(secondrepo.repoDir,
+        '*-primary.xml.gz')
+    second_filelists_cache_path = get_file_cache_path(secondrepo.repoDir,
+        '*-filelists.xml.gz')
+
+    # Ensure the cache only has files from the second one
+    assert not os.path.exists(first_primary_cache_path)
+    assert not os.path.exists(first_filelists_cache_path)
+    assert os.path.exists(second_primary_cache_path)
+    assert os.path.exists(second_filelists_cache_path)

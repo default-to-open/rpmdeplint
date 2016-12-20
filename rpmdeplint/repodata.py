@@ -9,8 +9,10 @@ from __future__ import absolute_import
 import os
 import logging
 import tempfile
-import shutil
+import requests
+import errno
 import glob
+import time
 from six.moves import configparser
 import librepo
 import hawkey
@@ -124,29 +126,88 @@ class Repo(object):
 
     def download_repodata(self):
         logger.debug('Loading repodata for %s from %s', self.name,
-                self.baseurl or self.metalink)
+            self.baseurl or self.metalink)
         self.librepo_handle = h = librepo.Handle()
         r = librepo.Result()
         h.repotype = librepo.LR_YUMREPO
-        h.setopt(librepo.LRO_YUMDLIST, ["filelists", "primary"])
         if self.baseurl:
             h.urls = [self.baseurl]
         if self.metalink:
             h.mirrorlist = self.metalink
+        h.setopt(librepo.LRO_DESTDIR, tempfile.mkdtemp(self.name,
+           prefix=REPO_CACHE_NAME_PREFIX, dir=REPO_CACHE_DIR))
         h.setopt(librepo.LRO_INTERRUPTIBLE, True)
-
+        h.setopt(librepo.LRO_YUMDLIST, [])
         if self.baseurl and os.path.isdir(self.baseurl):
+            self._download_metadata_result(h, r)
+            self._yum_repomd = r.yum_repomd
             self._root_path = self.baseurl
-            h.local = True
+            self.primary_fn = self.primary_url
+            self.filelists_fn = self.filelists_url
         else:
-            self._root_path = h.destdir = tempfile.mkdtemp(
-                self.name, prefix=REPO_CACHE_NAME_PREFIX, dir=REPO_CACHE_DIR)
+            self._root_path = h.destdir = tempfile.mkdtemp(self.name,
+                prefix=REPO_CACHE_NAME_PREFIX, dir=REPO_CACHE_DIR)
+            self._download_metadata_result(h, r)
+            self._yum_repomd = r.yum_repomd
+            self.primary_fn = self._download_repodata_file(
+                self.primary_checksum, self.primary_url)
+            self.filelists_fn = self._download_repodata_file(
+                self.filelists_checksum, self.filelists_url)
+
+    def _download_metadata_result(self, handle, result):
         try:
-            h.perform(r)
+            handle.perform(result)
         except librepo.LibrepoException as ex:
             raise RepoDownloadError(self, str(ex))
 
-        self._yum_repomd = r.yum_repomd
+    def _download_repodata_file(self, checksum, url):
+        """
+        Each created file in cache becomes immutable, and is referenced in
+        the directory tree within XDG_CACHE_HOME as
+        $XDG_CACHE_HOME/<checksum-type>/<checksum-first-letter>/<rest-of
+        -checksum>
+
+        Both metadata and the files to be cached are written to a tempdir first
+        then renamed to the cache dir atomically to avoid them potentially being
+        accessed before written to cache.
+        """
+        filepath_in_cache = os.path.join(os.path.join(self.cache_basedir,
+            checksum[:1], checksum[1:], os.path.basename(url)))
+        self.clean_expired_cache(self.cache_basedir)
+        try:
+            with open(filepath_in_cache, 'r+'):
+                logger.debug('Using cached file for %s', self.name)
+                return filepath_in_cache
+        except IOError:
+            pass # download required
+        try:
+            os.makedirs(os.path.dirname(filepath_in_cache))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                logger.debug('Cache directory %s already exists',
+                    os.path.dirname(filepath_in_cache))
+                raise
+        fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(filepath_in_cache))
+        with requests.Session() as session, os.fdopen(fd, 'wb+') as temp_file:
+            data = session.get(url, stream=True)
+            for chunk in data.iter_content():
+                temp_file.write(chunk)
+        os.rename(temp_path, filepath_in_cache)
+        return filepath_in_cache
+
+    def clean_expired_cache(self, root_path):
+        """
+        Removes any file within the directory tree that is older than the
+        given value in RPMDEPLINT_EXPIRY_SECONDS environment variable.
+        """
+        current_time = time.time()
+        for root, dirs, files in os.walk(root_path):
+            for fd in files:
+                file_path = os.path.join(root, fd)
+                modified = os.stat(file_path).st_mtime
+                if modified < current_time - self.expiry_seconds:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
 
     def download_package(self, location, checksum_type, checksum):
         if self.librepo_handle.local:
@@ -169,19 +230,6 @@ class Repo(object):
             logger.debug('Saved as %s', target.local_path)
         return target.local_path
 
-    def cleanup_cache(self):
-        """Deletes this repository's cache directory from disk.
-
-        In case of an error, the error is logged and no exception is raised.
-        """
-        if self.librepo_handle.local:
-            return
-
-        try:
-            shutil.rmtree(self._root_path)
-        except OSError as err:
-            logger.error(err)
-
     @property
     def yum_repomd(self):
         return self._yum_repomd
@@ -189,11 +237,24 @@ class Repo(object):
     def repomd_fn(self):
         return os.path.join(self._root_path, 'repodata', 'repomd.xml')
     @property
-    def primary_fn(self):
-        return os.path.join(self._root_path, self.yum_repomd['primary']['location_href'])
+    def primary_url(self):
+        return os.path.join(self.baseurl, self.yum_repomd['primary']['location_href'])
     @property
-    def filelists_fn(self):
-        return os.path.join(self._root_path, self.yum_repomd['filelists']['location_href'])
+    def primary_checksum(self):
+        return self.yum_repomd['primary']['checksum']
+    @property
+    def filelists_checksum(self):
+        return self.yum_repomd['filelists']['checksum']
+    @property
+    def filelists_url(self):
+        return os.path.join(self.baseurl, self.yum_repomd['filelists']['location_href'])
+    @property
+    def cache_basedir(self):
+        return os.path.join(os.environ.get('XDG_CACHE_HOME',
+            os.path.join(os.path.expanduser('~'), '.cache')), 'rpmdeplint')
+    @property
+    def expiry_seconds(self):
+        return float(os.getenv('RPMDEPLINT_EXPIRY_SECONDS', '604800'))
 
     def __str__(self):
         strrep = ["Repo Name: {0}".format(self.name),

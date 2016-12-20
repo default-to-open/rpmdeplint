@@ -60,10 +60,12 @@ class DirServer(WSGIServer):
     def __init__(self, host='127.0.0.1', port=0):
         super(DirServer, self).__init__(host, port, self)
         self.basepath = None
+        self.num_requests = 0
 
     def __call__(self, environ, start_response):
         path_info = os.path.normpath(environ['PATH_INFO'])
         localpath = os.path.join(self.basepath, path_info.lstrip('/'))
+        self.num_requests += 1
 
         if not os.path.exists(localpath):
             start_response('404 Not Found', [])

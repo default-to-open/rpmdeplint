@@ -132,9 +132,8 @@ class DependencyAnalyzer(object):
         return self
 
     def __exit__(self, type, value, tb):
-        """Clean up cache directory to prevent from growing unboundedly."""
-        for repo in self.repos_by_name.values():
-            repo.cleanup_cache()
+        """ Perform NOP on exit of analyzer to maintain the state of repodata
+        cache """
 
     def find_packages_that_require(self, name):
         pkgs = hawkey.Query(self._sack).filter(requires=name, latest_per_arch=True)
