@@ -250,10 +250,10 @@ class DependencyAnalyzer(object):
                         problems.append(problem_msg)
         return sorted(problems)
 
-    def _packages_have_explicit_conflict(self, left, right):
+    def _packages_can_be_installed_together(self, left, right):
         """
-        Returns True if the given packages have an explicit RPM-level Conflicts 
-        declared between each other.
+        Returns True if the given packages can be installed together and False
+        if it runs into a conflict or indirect Requires relationship method.
         """
         # XXX there must be a better way of testing for explicit Conflicts but 
         # the best I could find was to try solving the installation of both and 
@@ -264,8 +264,13 @@ class DependencyAnalyzer(object):
         g.run()
         if g.problems and 'conflicts' in g.problems[0]:
             logger.debug('Found explicit Conflicts between %s and %s', left, right)
-            return True
-        return False
+            return False
+        if g.problems and \
+           six.text_type(right) in g.problems[0] and \
+           'none of the providers can be installed' in g.problems[0]:
+            logger.debug("Packages can't be installed together and won't conflict %s and %s", left, right)
+            return False
+        return True
 
     def _file_conflict_is_permitted(self, left, right, filename):
         """
@@ -345,7 +350,7 @@ class DependencyAnalyzer(object):
                 for i, conflicting in enumerate(conflicting_packages, 1):
                     if conflicting == package:
                         continue
-                    if self._packages_have_explicit_conflict(package, conflicting):
+                    if not self._packages_can_be_installed_together(package, conflicting):
                         continue
                     logger.debug('Considering conflict on %s with %s', filename, conflicting)
                     conflicting_amount = len(conflicting_packages) - i

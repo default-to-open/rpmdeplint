@@ -263,3 +263,38 @@ def test_does_not_fail_with_signed_rpms(request, dir_server):
     assert exitcode == 3
     assert err == ('Undeclared file conflicts:\n'
             'b-0.1-1.i386 provides /usr/share/thing which is also provided by a-0.1-1.x86_64\n')
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1412910
+def test_conflict_is_ignored_if_not_installable_concurrently(request, dir_server):
+    glib_26 = rpmfluff.SimpleRpmBuild('glib', '2.26', '1.el6', ['i686'])
+    glib_26.add_devel_subpackage()
+    glib_26.add_installed_file(
+        installPath="usr/share/gtk-doc/html/gio/annotation-glossary.html",
+        sourceFile=rpmfluff.SourceFile('annotation-glossary.html', 'something\n'),
+        subpackageSuffix='devel')
+    glib_28 = rpmfluff.SimpleRpmBuild('glib', '2.28', '8.el6', ['i686'])
+    glib_doc = glib_28.add_subpackage('doc')
+    glib_doc.add_requires('glib = 2.28-8.el6')
+    glib_28.add_installed_file(
+        installPath="usr/share/gtk-doc/html/gio/annotation-glossary.html",
+        sourceFile=rpmfluff.SourceFile('annotation-glossary.html', 'some other content\n'),
+        subpackageSuffix='doc')
+    glib_28.make()
+
+    repo = rpmfluff.YumRepoBuild((glib_26,))
+    repo.make('i686')
+    dir_server.basepath = repo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(repo.repoDir)
+        shutil.rmtree(glib_28.get_base_dir())
+        shutil.rmtree(glib_26.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-conflicts',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         glib_28.get_built_rpm('i686'),
+                                         glib_28.get_built_rpm('i686', 'glib-doc')])
+    assert exitcode == 0
+    assert err == ''
+    assert out == ''
