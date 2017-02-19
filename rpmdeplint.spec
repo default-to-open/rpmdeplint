@@ -40,10 +40,12 @@ BuildRequires:  python-six
 BuildRequires:  rpm-python
 BuildRequires:  python-hawkey
 BuildRequires:  python-librepo
+BuildRequires:  python-requests
 Requires:       python-six
 Requires:       rpm-python
 Requires:       python-hawkey
 Requires:       python-librepo
+Requires:       python-requests
 
 %description -n python2-%{name}
 Rpmdeplint is a tool to find errors in RPM packages in the context of their 
@@ -62,10 +64,12 @@ BuildRequires:  python3-six
 BuildRequires:  rpm-python3
 BuildRequires:  python3-hawkey
 BuildRequires:  python3-librepo
+BuildRequires:  python3-requests
 Requires:       python3-six
 Requires:       rpm-python3
 Requires:       python3-hawkey
 Requires:       python3-librepo
+Requires:       python3-requests
 
 %description -n python3-%{name}
 Rpmdeplint is a tool to find errors in RPM packages in the context of their 
