@@ -1,6 +1,16 @@
 Changelog
 ---------
 
+1.3
+~~~
+
+* Conflict checking does not report subsequent conflicts which are resolved
+  via requires of dependencies.
+
+* Added yum repository caching which performs regular cleans for files more than
+  one week old. This expiry period can be modified with the environment
+  variable ``RPMDEPLINT_EXPIRY_SECONDS``.
+
 1.2
 ~~~
 
