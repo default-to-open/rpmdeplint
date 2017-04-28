@@ -14,7 +14,7 @@ Version:        1.3
 Release:        1%{?dist}
 Summary:        Tool to find errors in RPM packages in the context of their dependency graph
 License:        GPLv2+
-URL:            https://pypi.python.org/pypi/rpmdeplint
+URL:            https://pagure.io/rpmdeplint
 Source0:        https://files.pythonhosted.org/packages/source/r/%{name}/%{name}-%{upstream_version}.tar.gz
 BuildArch:      noarch
 
