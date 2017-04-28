@@ -17,11 +17,11 @@ release = version
 
 setup(name='rpmdeplint',
       version=version,
-      description='RPM Dependency Graph Analysis',
+      description='Tool to find errors in RPM packages in the context of their dependency graph',
       long_description=open('README.rst').read(),
       url='https://pagure.io/rpmdeplint',
       author='Red Hat, Inc.',
-      author_email='jorris@redhat.com',
+      author_email='qa-devel@lists.fedoraproject.org',
       classifiers=[
           'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
           'Programming Language :: Python :: 2.7',
