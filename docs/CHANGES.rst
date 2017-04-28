@@ -1,15 +1,36 @@
 Changelog
 ---------
 
-1.3
+1.4
 ~~~
-
-* Conflict checking does not report subsequent conflicts which are resolved
-  via requires of dependencies.
 
 * Added yum repository caching which performs regular cleans for files more than
   one week old. This expiry period can be modified with the environment
   variable ``RPMDEPLINT_EXPIRY_SECONDS``.
+
+1.3
+~~~
+
+* If you are testing only ``noarch`` packages, you must now explicitly pass the
+  ``--arch`` option to specify the target architecture you are testing against. 
+  Previously the checks would run but produce nonsensical results
+  (`RHBZ#1392635 <https://bugzilla.redhat.com/show_bug.cgi?id=1392635>`__).
+
+* The check for undeclared file conflicts has been improved:
+
+  * File conflicts are not reported if the two conflicting packages cannot be
+    installed together due to Requires relationships
+    (`RHBZ#1412910 <https://bugzilla.redhat.com/show_bug.cgi?id=1412910>`__).
+
+  * It no longer downloads every potentially conflicting package to
+    check. Only the first potential conflict is checked, to avoid downloading 
+    a very large number of packages for commonly shared paths such as 
+    :file:`/usr/lib/debug`
+    (`RHBZ#1400722 <https://bugzilla.redhat.com/show_bug.cgi?id=1400722>`__).
+
+* A more informative exception is now raised when downloading repodata fails.
+
+* Added a ``--version`` option to print the installed version of rpmdeplint.
 
 1.2
 ~~~
