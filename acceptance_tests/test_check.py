@@ -74,6 +74,7 @@ def test_raises_error_on_mismatched_architecture_rpms(request, dir_server):
         test_tool_rpm.get_built_rpm('ppc64'), test_tool_rpm.get_built_rpm('x86_64')
     ])
 
+    assert 'usage:' in err
     assert 'Testing multiple incompatible package architectures is not currently supported' in err
     assert 'x86_64' in err
     assert 'ppc64' in err
