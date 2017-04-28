@@ -179,8 +179,11 @@ def main():
             'RPM packages in the context of their dependency graph.', prog='rpmdeplint')
     parser.add_argument('--debug', action='store_true',
             help='Show detailed progress messages')
-    subparsers = parser.add_subparsers(title='subcommands')
     parser.add_argument('--version', action='version', version='%(prog)s ' + version)
+
+    subparsers = parser.add_subparsers(dest='subcommand', title='subcommands')
+    subparsers.required = True
+
     parser_check = subparsers.add_parser('check',
             help='Perform all checks',
             description=cmd_check.__doc__)
