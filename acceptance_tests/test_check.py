@@ -126,3 +126,22 @@ def test_guesses_arch_when_combined_with_noarch_package(request, dir_server):
     assert err == ('Problems with dependency set:\n'
             'nothing provides libfoo.so.4 needed by a-0.1-1.noarch\n'
             'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
+
+
+def test_prints_error_on_repo_download_failure(request, dir_server):
+    # Specifically we don't want an unhandled exception, because that triggers abrt.
+    test_tool_rpm = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['x86_64'])
+    test_tool_rpm.make()
+
+    def cleanUp():
+        shutil.rmtree(test_tool_rpm.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint([
+        'rpmdeplint', 'check', '--repo=broken,http://notexist.example/',
+        test_tool_rpm.get_built_rpm('x86_64')
+    ])
+
+    assert exitcode == 1
+    assert err.startswith('Failed to download repodata')
+    assert 'Traceback' not in err

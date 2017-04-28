@@ -85,4 +85,4 @@ def test_bad_repo_url_raises_error(yumdir):
     with pytest.raises(RepoDownloadError) as rde:
         repos[0].download_repodata()
     assert 'Cannot download repomd.xml' in str(rde.value)
-    assert 'Repo Name: dummy' in str(rde.value)
+    assert "repo_name='dummy'" in str(rde.value)
