@@ -224,8 +224,7 @@ def main():
     try:
         return args.func(args)
     except argparse.ArgumentTypeError as exc:
-        logger.error(exc)
-        return 2
+        parser.error(str(exc))
 
 if __name__ == '__main__':
     sys.exit(main())
