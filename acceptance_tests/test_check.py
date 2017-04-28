@@ -221,3 +221,22 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
     assert not os.path.exists(first_filelists_cache_path)
     assert os.path.exists(second_primary_cache_path)
     assert os.path.exists(second_filelists_cache_path)
+
+
+def test_prints_error_on_repo_download_failure(request, dir_server):
+    # Specifically we don't want an unhandled exception, because that triggers abrt.
+    test_tool_rpm = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['x86_64'])
+    test_tool_rpm.make()
+
+    def cleanUp():
+        shutil.rmtree(test_tool_rpm.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint([
+        'rpmdeplint', 'check', '--repo=broken,http://notexist.example/',
+        test_tool_rpm.get_built_rpm('x86_64')
+    ])
+
+    assert exitcode == 1
+    assert err.startswith('Failed to download repodata')
+    assert 'Traceback' not in err

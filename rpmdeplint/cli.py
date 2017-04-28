@@ -11,7 +11,7 @@ import logging
 import argparse
 import pkg_resources
 from rpmdeplint import DependencyAnalyzer, get_hawkey_package_arch
-from rpmdeplint.repodata import Repo
+from rpmdeplint.repodata import Repo, RepoDownloadError, PackageDownloadError
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +225,9 @@ def main():
         return args.func(args)
     except argparse.ArgumentTypeError as exc:
         parser.error(str(exc))
+    except (RepoDownloadError, PackageDownloadError) as exc:
+        sys.stderr.write('%s\n' % exc)
+        return 1
 
 if __name__ == '__main__':
     sys.exit(main())

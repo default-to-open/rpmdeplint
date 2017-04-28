@@ -34,8 +34,7 @@ class RepoDownloadError(Exception):
     """
     Raised if an error occurs downloading repodata
     """
-    def __init__(self, repo, message):
-        super(RepoDownloadError, self).__init__("{0}\n{1}".format(message, repo))
+    pass
 
 def get_yumvars():
     # This is not all the yumvars, but hopefully good enough...
@@ -158,7 +157,8 @@ class Repo(object):
         try:
             handle.perform(result)
         except librepo.LibrepoException as ex:
-            raise RepoDownloadError(self, str(ex))
+            raise RepoDownloadError('Failed to download repodata for %r: %s'
+                    % (self, ex.args[1]))
 
     def _download_repodata_file(self, checksum, url):
         """
@@ -256,12 +256,9 @@ class Repo(object):
     def expiry_seconds(self):
         return float(os.getenv('RPMDEPLINT_EXPIRY_SECONDS', '604800'))
 
-    def __str__(self):
-        strrep = ["Repo Name: {0}".format(self.name),
-                  "Baseurl: {0}".format(self.baseurl),
-                  "Metalink: {0}".format(self.metalink)]
-        if hasattr(self, 'yum_repomd'):
-            strrep.append("repomd_fn: {0}".format(self.repomd_fn))
-            strrep.append("primary_fn: {0}".format(self.primary_fn))
-            strrep.append("filelists_fn: {0}".format(self.filelists_fn))
-        return "\n".join(strrep)
+    def __repr__(self):
+        if self.baseurl:
+            return '%s(repo_name=%r, baseurl=%r)' % (self.__class__.__name__, self.name, self.baseurl)
+        if self.metalink:
+            return '%s(repo_name=%r, metalink=%r)' % (self.__class__.__name__, self.name, self.metalink)
+        return '%s(repo_name=%r)' % (self.__class__.__name__, self.name)
