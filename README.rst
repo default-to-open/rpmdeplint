@@ -28,7 +28,8 @@ Project Links
 -------------
 
 * `Source code on Pagure <https://pagure.io/rpmdeplint>`__
-* Issues: https://bugzilla.redhat.com/buglist.cgi?quicksearch=product%3Arpmdeplint&list_id=5207715
+* `File a bug <https://bugzilla.redhat.com/enter_bug.cgi?product=rpmdeplint>`__
+  or `view open bugs <https://bugzilla.redhat.com/buglist.cgi?product=rpmdeplint&bug_status=__open__>`__
 * For feedback and discussion join #beaker on irc.freenode.net.
 * We use `Gerrit <https://gerrit.beaker-project.org>`_ for code review. Patches welcome!
 * `Documentation <https://rpmdeplint.readthedocs.io>`_
