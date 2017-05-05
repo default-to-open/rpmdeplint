@@ -73,10 +73,9 @@ class TestDependencySet(TestCase):
         ds = DependencySet()
         beaker_common = 'beaker-common-22.1-1.fc22.noarch'
         ds.add_package(beaker_common,
-                       'beaker-client',
                        map(lambda x: test_pkg(x, 'fedora_23'), self._beaker_client_deps),
                        [])
 
         self.assertEqual(1, len(ds.packages))
         self.assertEqual(beaker_common, ds.packages[0])
-        self.assertEqual(len(self._beaker_client_deps), len(ds.dependencies_for_package(beaker_common)))
+        self.assertEqual(len(self._beaker_client_deps), len(ds.package_dependencies[beaker_common]['dependencies']))

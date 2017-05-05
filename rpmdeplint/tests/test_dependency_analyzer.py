@@ -34,6 +34,7 @@ class TestDependencyAnalyzer(TestCase):
         apple.add_provides('apple-lib')
         apple.add_requires('peeler')
         apple.add_requires('lemon-juice')
+        apple.make()
         self.addCleanup(shutil.rmtree, apple.get_base_dir())
         lemon_meringue_pie = rpmfluff.SimpleRpmBuild('lemon-meringue-pie', '1', '0', ['x86_64'])
         lemon_meringue_pie.add_requires('lemon-zest')
@@ -41,33 +42,19 @@ class TestDependencyAnalyzer(TestCase):
         lemon_meringue_pie.add_requires('egg-whites')
         lemon_meringue_pie.add_requires('egg-yolks')
         lemon_meringue_pie.add_requires('sugar')
+        lemon_meringue_pie.make()
         self.addCleanup(shutil.rmtree, lemon_meringue_pie.get_base_dir())
-        test_repo = rpmfluff.YumRepoBuild([apple, lemon_meringue_pie])
-        test_repo.make('x86_64', 'noarch')
-        self.addCleanup(shutil.rmtree, test_repo.repoDir)
 
-        da = DependencyAnalyzer(repos=[
-                Repo(repo_name='base_1', baseurl=base_1_repo.repoDir),
-                Repo(repo_name='test', baseurl=test_repo.repoDir)],
-                packages=[])
+        da = DependencyAnalyzer(
+                repos=[Repo(repo_name='base_1', baseurl=base_1_repo.repoDir)],
+                packages=[apple.get_built_rpm('x86_64'),
+                          lemon_meringue_pie.get_built_rpm('x86_64')])
 
-        pkgs = da.list_latest_packages()
-        self.assertEqual(6, len(pkgs))
-        self.assertIs(type(pkgs), list)
-
-        want_cinnamon = da.find_packages_that_require('cinnamon')
-        self.assertEqual(1, len(want_cinnamon))
-        apple_pie = want_cinnamon[0]
-        self.assertEqual('apple-pie-1.9-1.x86_64', str(apple_pie))
-
-        ok, result = da.try_to_install(apple_pie)
-        self.assertEqual(True, ok)
-        self.assertEqual(5, len(result['installs']))
-
-        ok, result = da.try_to_install(*pkgs)
+        ok, dependency_set = da.try_to_install_all()
         self.assertEqual(False, ok)
-        self.assertEqual(1, len(result['problems']))
-        self.assertEqual('nothing provides egg-whites needed by lemon-meringue-pie-1-0.x86_64', result['problems'][0])
+        self.assertEqual(1, len(dependency_set.overall_problems))
+        self.assertEqual(['nothing provides egg-whites needed by lemon-meringue-pie-1-0.x86_64'],
+                dependency_set.package_dependencies['lemon-meringue-pie-1-0.x86_64']['problems'])
 
         eggs = rpmfluff.SimpleRpmBuild('eggs', '1', '3', ['noarch'])
         eggs.add_provides('egg-whites')
@@ -79,13 +66,13 @@ class TestDependencyAnalyzer(TestCase):
         base_2_repo.make('x86_64', 'noarch')
         self.addCleanup(shutil.rmtree, base_2_repo.repoDir)
 
-        da = DependencyAnalyzer(repos=[
-                Repo(repo_name='base_1', baseurl=base_1_repo.repoDir),
-                Repo(repo_name='base_2', baseurl=base_2_repo.repoDir),
-                Repo(repo_name='test', baseurl=test_repo.repoDir)],
-                packages=[])
+        da = DependencyAnalyzer(
+                repos=[Repo(repo_name='base_1', baseurl=base_1_repo.repoDir),
+                       Repo(repo_name='base_2', baseurl=base_2_repo.repoDir)],
+                packages=[apple.get_built_rpm('x86_64'),
+                          lemon_meringue_pie.get_built_rpm('x86_64')])
 
-        pkgs = da.list_latest_packages()
-        ok, result = da.try_to_install(*pkgs)
+        ok, dependency_set = da.try_to_install_all()
         self.assertEqual(True, ok)
-        self.assertEqual(8, len(result['installs']))
+        self.assertEqual(4, len(dependency_set.package_dependencies['lemon-meringue-pie-1-0.x86_64']['dependencies']))
+        self.assertEqual(3, len(dependency_set.package_dependencies['apple-4.9-3.x86_64']['dependencies']))
