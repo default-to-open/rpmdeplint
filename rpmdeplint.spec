@@ -37,6 +37,7 @@ BuildRequires:  python2-devel
 %if 0%{?fedora} >= 26 || 0%{?rhel} >= 8
 BuildRequires:  python2-sphinx
 BuildRequires:  python2-pytest
+BuildRequires:  python2-rpmfluff
 BuildRequires:  python2-six
 BuildRequires:  python2-rpm
 BuildRequires:  python2-hawkey
@@ -50,6 +51,11 @@ Requires:       python2-requests
 %else
 BuildRequires:  python-sphinx
 BuildRequires:  pytest
+%if 0%{?fedora}
+BuildRequires:  python2-rpmfluff
+%else
+BuildRequires:  python-rpmfluff
+%endif
 BuildRequires:  python-six
 BuildRequires:  rpm-python
 BuildRequires:  python-hawkey
@@ -75,6 +81,7 @@ Summary:        %{summary}
 BuildRequires:  python3-devel
 BuildRequires:  python3-sphinx
 BuildRequires:  python3-pytest
+BuildRequires:  python3-rpmfluff
 BuildRequires:  python3-six
 %if 0%{?fedora} >= 25 || 0%{?rhel} >= 8
 BuildRequires:  python3-rpm
