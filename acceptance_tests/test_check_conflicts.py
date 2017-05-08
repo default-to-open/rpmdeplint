@@ -5,6 +5,7 @@
 # (at your option) any later version.
 
 import shutil
+import subprocess
 import rpm
 import rpmfluff
 import os.path
@@ -298,3 +299,36 @@ def test_conflict_is_ignored_if_not_installable_concurrently(request, dir_server
     assert exitcode == 0
     assert err == ''
     assert out == ''
+
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1448768
+def test_obeys_xml_base_when_downloading_packages(request, tmpdir, dir_server):
+    p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['x86_64'])
+    p2.add_installed_file(installPath='usr/share/thing',
+            sourceFile=rpmfluff.SourceFile('thing', 'same content\n'))
+    p2.make()
+
+    # Set up a repo at http://$dirserver/therepo/ pointing at packages stored 
+    # in http://$dirserver/thepackages/ using xml:base.
+    dir_server.basepath = tmpdir.strpath
+    shutil.copy(p2.get_built_rpm('x86_64'), tmpdir.mkdir('thepackages').strpath)
+    subprocess.check_output(['createrepo_c',
+            '--baseurl={}/thepackages'.format(dir_server.url),
+            '--outputdir=.',
+            '../thepackages'],
+            stderr=subprocess.STDOUT, cwd=tmpdir.mkdir('therepo').strpath)
+
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['x86_64'])
+    p1.add_installed_file(installPath='usr/share/thing',
+            sourceFile=rpmfluff.SourceFile('thing', 'same content\n'))
+    p1.make()
+
+    def cleanUp():
+        shutil.rmtree(p2.get_base_dir())
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-conflicts',
+                                         '--repo=base,{}/therepo'.format(dir_server.url),
+                                         p1.get_built_rpm('x86_64')])
+    assert exitcode == 0

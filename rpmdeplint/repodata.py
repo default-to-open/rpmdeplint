@@ -209,13 +209,14 @@ class Repo(object):
                     if os.path.isfile(file_path):
                         os.remove(file_path)
 
-    def download_package(self, location, checksum_type, checksum):
+    def download_package(self, location, baseurl, checksum_type, checksum):
         if self.librepo_handle.local:
             local_path = os.path.join(self._root_path, location)
             logger.debug('Using package %s from local filesystem directly', local_path)
             return local_path
         logger.debug('Loading package %s from repo %s', location, self.name)
         target = librepo.PackageTarget(location,
+                base_url=baseurl,
                 checksum_type=librepo.checksum_str_to_type(checksum_type),
                 checksum=checksum,
                 dest=self._root_path,
