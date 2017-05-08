@@ -98,6 +98,72 @@ def test_ignores_dependency_problems_in_packages_under_test(request, dir_server)
     assert err == ''
 
 
+def test_ignores_problems_in_older_packages(request, dir_server):
+    # We only care if the *latest* version of each package in the repos is 
+    # satisfied. If there are dependency problems with an older version, it is 
+    # irrelevant because nobody will be installing it anyway.
+    p_older = rpmfluff.SimpleRpmBuild('a', '4.0', '1', ['i386'])
+    p_older.add_provides('libfoo.so.4')
+    p_older.add_provides('libfoo.so.5')
+    p_older_depending = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    p_older_depending.add_requires('libfoo.so.4')
+    p_newer_depending = rpmfluff.SimpleRpmBuild('b', '0.2', '1', ['i386'])
+    p_newer_depending.add_requires('libfoo.so.5')
+    baserepo = rpmfluff.YumRepoBuild([p_older, p_older_depending, p_newer_depending])
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    p_newer = rpmfluff.SimpleRpmBuild('a', '5.0', '1', ['i386'])
+    p_newer.add_provides('libfoo.so.5')
+    p_newer.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p_older_depending.get_base_dir())
+        shutil.rmtree(p_newer_depending.get_base_dir())
+        shutil.rmtree(p_older.get_base_dir())
+        shutil.rmtree(p_newer.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         p_newer.get_built_rpm('i386')])
+    assert exitcode == 0
+
+
+def test_ignores_problems_in_obsoleted_packages(request, dir_server):
+    # As above, we also don't care about any dependency problems in packages 
+    # that have been obsoleted.
+    p_older = rpmfluff.SimpleRpmBuild('a', '4.0', '1', ['i386'])
+    p_older.add_provides('libfoo.so.4')
+    p_older.add_provides('libfoo.so.5')
+    p_obsolete_depending = rpmfluff.SimpleRpmBuild('foofouruser', '1.0', '1', ['i386'])
+    p_obsolete_depending.add_requires('libfoo.so.4')
+    p_newer_depending = rpmfluff.SimpleRpmBuild('foofiveuser', '0.1', '1', ['i386'])
+    p_newer_depending.add_requires('libfoo.so.5')
+    p_newer_depending.add_obsoletes('foofouruser <= 1.0-1')
+    baserepo = rpmfluff.YumRepoBuild([p_older, p_obsolete_depending, p_newer_depending])
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    p_newer = rpmfluff.SimpleRpmBuild('a', '5.0', '1', ['i386'])
+    p_newer.add_provides('libfoo.so.5')
+    p_newer.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p_obsolete_depending.get_base_dir())
+        shutil.rmtree(p_newer_depending.get_base_dir())
+        shutil.rmtree(p_older.get_base_dir())
+        shutil.rmtree(p_newer.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-repoclosure',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         p_newer.get_built_rpm('i386')])
+    assert exitcode == 0
+
+
 def test_warns_on_preexisting_repoclosure_problems(request, dir_server):
     # If the repos have some existing dependency problems, we don't want that 
     # to be an error -- otherwise a bad repo will make it impossible to get any 
