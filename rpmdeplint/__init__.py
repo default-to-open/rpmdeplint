@@ -166,7 +166,8 @@ class DependencyAnalyzer(object):
         repo = self.repos_by_name[package.reponame]
         checksum_type = hawkey.chksum_name(package.chksum[0])
         checksum = binascii.hexlify(package.chksum[1]).decode('ascii')
-        return repo.download_package(package.location, checksum_type=checksum_type, checksum=checksum)
+        return repo.download_package(package.location, package.baseurl,
+                checksum_type=checksum_type, checksum=checksum)
 
     def try_to_install(self, *packages):
         """
