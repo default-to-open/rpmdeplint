@@ -21,9 +21,9 @@ BuildArch:      noarch
 # The base package is just the CLI, which pulls in the rpmdeplint
 # Python modules to do the real work.
 %if %{with python3}
-Requires:       python3-%{name}
+Requires:       python3-%{name} = %{version}-%{release}
 %else
-Requires:       python2-%{name}
+Requires:       python2-%{name} = %{version}-%{release}
 %endif
 
 %description
