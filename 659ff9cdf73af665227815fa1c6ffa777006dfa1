@@ -1,0 +1,8 @@
+Ready-for-Checks+1: Dan Callaghan <dcallagh@redhat.com>
+Code-Review+2: Roman Joost <rjoost@redhat.com>
+Verified+1: Dan Callaghan <dcallagh@redhat.com>
+Submitted-by: Dan Callaghan <dcallagh@redhat.com>
+Submitted-at: Wed, 21 Jun 2017 05:36:59 +0000
+Reviewed-on: https://gerrit.beaker-project.org/5713
+Project: rpmdeplint
+Branch: refs/heads/master
