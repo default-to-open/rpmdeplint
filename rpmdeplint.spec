@@ -34,6 +34,20 @@ dependency graph.
 %{?python_provide:%python_provide python2-%{name}}
 Summary:        %{summary}
 BuildRequires:  python2-devel
+%if 0%{?fedora} >= 26 || 0%{?rhel} >= 8
+BuildRequires:  python2-sphinx
+BuildRequires:  python2-pytest
+BuildRequires:  python2-six
+BuildRequires:  python2-rpm
+BuildRequires:  python2-hawkey
+BuildRequires:  python2-librepo
+BuildRequires:  python2-requests
+Requires:       python2-six
+Requires:       python2-rpm
+Requires:       python2-hawkey
+Requires:       python2-librepo
+Requires:       python2-requests
+%else
 BuildRequires:  python-sphinx
 BuildRequires:  pytest
 BuildRequires:  python-six
@@ -46,6 +60,7 @@ Requires:       rpm-python
 Requires:       python-hawkey
 Requires:       python-librepo
 Requires:       python-requests
+%endif
 
 %description -n python2-%{name}
 Rpmdeplint is a tool to find errors in RPM packages in the context of their 
@@ -61,12 +76,20 @@ BuildRequires:  python3-devel
 BuildRequires:  python3-sphinx
 BuildRequires:  python3-pytest
 BuildRequires:  python3-six
+%if 0%{?fedora} >= 25 || 0%{?rhel} >= 8
+BuildRequires:  python3-rpm
+%else
 BuildRequires:  rpm-python3
+%endif
 BuildRequires:  python3-hawkey
 BuildRequires:  python3-librepo
 BuildRequires:  python3-requests
 Requires:       python3-six
+%if 0%{?fedora} >= 25 || 0%{?rhel} >= 8
+Requires:       python3-rpm
+%else
 Requires:       rpm-python3
+%endif
 Requires:       python3-hawkey
 Requires:       python3-librepo
 Requires:       python3-requests
