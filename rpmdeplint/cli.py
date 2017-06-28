@@ -23,21 +23,25 @@ def cmd_check(args):
     """
     failed = False
     with dependency_analyzer_from_args(args) as analyzer:
+        logger.debug('Performing satisfiability check (check-sat)')
         ok, result = analyzer.try_to_install_all()
         if not ok:
             sys.stderr.write(u'Problems with dependency set:\n')
             sys.stderr.write(u'\n'.join(result.overall_problems) + u'\n')
             failed = True
+        logger.debug('Performing repoclosure check (check-repoclosure)')
         problems = analyzer.find_repoclosure_problems()
         if problems:
             sys.stderr.write(u'Dependency problems with repos:\n')
             sys.stderr.write(u'\n'.join(problems) + u'\n')
             failed = True
+        logger.debug('Performing file conflict check (check-conflicts)')
         conflicts = analyzer.find_conflicts()
         if conflicts:
             sys.stderr.write(u'Undeclared file conflicts:\n')
             sys.stderr.write(u'\n'.join(conflicts) + u'\n')
             failed = True
+        logger.debug('Performing upgrade check (check-upgrade)')
         problems = analyzer.find_upgrade_problems()
         if problems:
             sys.stderr.write(u'Upgrade problems:\n')
