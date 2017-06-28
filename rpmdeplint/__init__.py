@@ -346,6 +346,7 @@ class DependencyAnalyzer(object):
         """
         problems = []
         for package in self.packages:
+            logger.debug('Checking all files in %s for conflicts', package)
             for filename in package.files:
                 conflicting_packages = hawkey.Query(self._sack).filter(file=filename, latest_per_arch=True)
                 for i, conflicting in enumerate(conflicting_packages, 1):
@@ -375,9 +376,11 @@ class DependencyAnalyzer(object):
         """
         problems = []
         for package in self.packages:
+            logger.debug('Finding packages newer than %s', package)
             for newer in hawkey.Query(self._sack).filter(name=package.name, arch=package.arch, evr__gt=package.evr):
                 problems.append(u'{} would be upgraded by {} from repo {}'.format(
                         six.text_type(package), six.text_type(newer), newer.reponame))
+            logger.debug('Finding packages obsoleting %s', package)
             for obsoleting in hawkey.Query(self._sack).filter(obsoletes=[package]):
                 problems.append(u'{} would be obsoleted by {} from repo {}'.format(
                         six.text_type(package), six.text_type(obsoleting), obsoleting.reponame))
