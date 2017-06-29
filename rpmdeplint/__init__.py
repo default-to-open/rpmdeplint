@@ -12,7 +12,7 @@ import binascii
 import logging
 import six
 from six.moves import map
-import hawkey
+import solv
 import rpm
 import ctypes
 
@@ -85,29 +85,31 @@ class DependencyAnalyzer(object):
     repository data. The cache directory will be cleaned upon exit.
     """
 
-    def __init__(self, repos, packages, sack=None, arch=None):
+    def __init__(self, repos, packages, arch=None):
         """
         :param repos: An iterable of rpmdeplint.repodata.Repo instances
         :param packages: An iterable of rpm package paths.
         """
-        if sack is None:
-            if arch is not None:
-                self._sack = hawkey.Sack(make_cache_dir=True, arch=arch)
-            else:
-                self._sack = hawkey.Sack(make_cache_dir=True)
-        else:
-            self._sack = sack
+        self.pool = solv.Pool()
+        self.pool.setarch(arch)
 
-        self.packages = []  #: list of hawkeye.Package to be tested
+        self.solvables = []  #: list of solv.Solvable to be tested
+        self.commandline_repo = self.pool.add_repo('@commandline')
         for rpmpath in packages:
-            package = self._sack.add_cmdline_package(rpmpath)
-            self.packages.append(package)
+            solvable = self.commandline_repo.add_rpm(rpmpath)
+            self.solvables.append(solvable)
 
         self.repos_by_name = {}  #: mapping of (reponame, rpmdeplint.Repo)
         for repo in repos:
             repo.download_repodata()
-            self._sack.load_yum_repo(repo=repo.as_hawkey_repo(), load_filelists=True)
+            solv_repo = self.pool.add_repo(repo.name)
+            # solv.xfopen does not accept unicode filenames on Python 2
+            solv_repo.add_rpmmd(solv.xfopen(str(repo.primary_fn)), None)
+            solv_repo.add_rpmmd(solv.xfopen(str(repo.filelists_fn)), None, solv.Repo.REPO_EXTEND_SOLVABLES)
             self.repos_by_name[repo.name] = repo
+
+        self.pool.addfileprovides()
+        self.pool.createwhatprovides()
 
     def __enter__(self):
         return self
@@ -116,107 +118,141 @@ class DependencyAnalyzer(object):
         """ Perform NOP on exit of analyzer to maintain the state of repodata
         cache """
 
-    def download_package(self, package):
-        if package in self.packages:
+    def download_package(self, solvable):
+        if solvable in self.solvables:
             # It's a package under test, nothing to download
-            return package.location
-        repo = self.repos_by_name[package.reponame]
-        checksum_type = hawkey.chksum_name(package.chksum[0])
-        checksum = binascii.hexlify(package.chksum[1]).decode('ascii')
-        return repo.download_package(package.location, package.baseurl,
-                checksum_type=checksum_type, checksum=checksum)
+            return solvable.lookup_location()[0]
+        href = solvable.lookup_location()[0]
+        baseurl = solvable.lookup_str(self.pool.str2id('solvable:mediabase'))
+        repo = self.repos_by_name[solvable.repo.name]
+        checksum = solvable.lookup_checksum(self.pool.str2id('solvable:checksum'))
+        return repo.download_package(href, baseurl,
+                checksum_type=checksum.typestr(),
+                checksum=checksum.hex())
 
     def try_to_install_all(self):
         """
         Try to solve the goal of installing each of the packages under test,
         starting from an empty package set.
         """
+        solver = self.pool.Solver()
         ds = DependencySet()
-        for pkg in self.packages:
-            logger.debug('Solving install goal for %s', pkg)
-            g = hawkey.Goal(self._sack)
-            g.install(pkg)
-            install_succeeded = g.run()
-            if install_succeeded:
-                ds.add_package(pkg, g.list_installs(), [])
+        for solvable in self.solvables:
+            logger.debug('Solving install jobs for %s', solvable)
+            jobs = solvable.Selection().jobs(solv.Job.SOLVER_INSTALL)
+            problems = solver.solve(jobs)
+            if problems:
+                ds.add_package(solvable, [], [six.text_type(p) for p in problems])
             else:
-                ds.add_package(pkg, [], g.problems)
+                ds.add_package(solvable, solver.transaction().newsolvables(), [])
 
         ok = len(ds.overall_problems) == 0
         return ok, ds
 
+    def _select_obsoleted_by(self, solvables):
+        """
+        Returns a solv.Selection matching every solvable which is "obsoleted" 
+        by some solvable in the given list -- either due to an explicit 
+        Obsoletes relationship, or because we have a solvable with the same 
+        name with a higher epoch-version-release.
+        """
+        # Start with an empty selection.
+        sel = self.pool.Selection()
+        for solvable in solvables:
+            # Select every solvable with the same name and lower EVR.
+            # XXX are there some special cases with arch-noarch upgrades which this does not handle?
+            sel.add(self.pool.select('{}.{} < {}'.format(solvable.name, solvable.arch, solvable.evr),
+                    solv.Selection.SELECTION_NAME |
+                    solv.Selection.SELECTION_DOTARCH |
+                    solv.Selection.SELECTION_REL))
+            for obsoletes_rel in solvable.lookup_deparray(self.pool.str2id('solvable:obsoletes')):
+                # Select every solvable matching the obsoletes relationship by name.
+                sel.add(obsoletes_rel.Selection_name())
+        return sel
+
     def find_repoclosure_problems(self):
         problems = []
-        available = hawkey.Query(self._sack).filter(latest_per_arch=True)
-        available_from_repos = hawkey.Query(self._sack)\
-                .filter(reponame__neq='@commandline').filter(latest_per_arch=True)
-        # Filter out any obsoleted packages from the list of available packages.
-        # It would be nice if latest_per_arch could do this for us, might make 
-        # a good hawkey RFE...
-        obsoleted = set()
-        for pkg in available:
-            if available.filter(obsoletes=[pkg]):
-                logger.debug('Excluding obsoleted package %s', pkg)
-                obsoleted.add(pkg)
-        # XXX if pkg__neq were implemented we could just filter out obsoleted 
-        # from the available query here
-        obsoleted_from_repos = set()
-        for pkg in available_from_repos:
-            if available_from_repos.filter(obsoletes=[pkg]):
-                logger.debug('Excluding obsoleted package %s from repos-only set', pkg)
-                obsoleted_from_repos.add(pkg)
-        for pkg in available:
-            if pkg in self.packages:
+        solver = self.pool.Solver()
+        # This selection matches packages obsoleted by our packages under test.
+        obs_sel = self._select_obsoleted_by(self.solvables)
+        # This selection matches packages obsoleted by other existing packages in the repo.
+        existing_obs_sel = self._select_obsoleted_by(s for s in self.pool.solvables
+                if s.repo.name != '@commandline')
+        obsoleted = obs_sel.solvables() + existing_obs_sel.solvables()
+        logger.debug('Excluding the following obsoleted packages:\n%s',
+                '\n'.join('  {}'.format(s) for s in obsoleted))
+        for solvable in self.pool.solvables:
+            if solvable in self.solvables:
                 continue # checked by check-sat command instead
-            if pkg in obsoleted:
+            if solvable in obsoleted:
                 continue # no reason to check it
-            if pkg.arch not in self._sack.list_arches():
+            if not self.pool.isknownarch(solvable.archid):
                 logger.debug(
                     'Skipping requirements for package {} arch does not match '
-                    'Architecture under test'.format(six.text_type(pkg)))
+                    'Architecture under test'.format(six.text_type(solvable)))
                 continue
-            logger.debug('Checking requires for %s', pkg)
+            logger.debug('Checking requires for %s', solvable)
             # XXX limit available packages to compatible arches?
             # (use libsolv archpolicies somehow)
-            for req in pkg.requires:
-                if six.text_type(req).startswith('rpmlib('):
-                    continue
-                providers = available.filter(provides=req)
-                providers = [p for p in providers if p not in obsoleted]
-                if not providers:
-                    problem_msg = 'nothing provides {} needed by {}'.format(
-                            six.text_type(req), six.text_type(pkg))
-                    # If it's a pre-existing problem with repos (that is, the 
-                    # problem also exists when the packages under test are 
-                    # excluded) then warn about it here but don't consider it 
-                    # a problem.
-                    repo_providers = available_from_repos.filter(provides=req)
-                    repo_providers = [p for p in repo_providers if p not in obsoleted_from_repos]
-                    if not repo_providers:
-                        logger.warn('Ignoring pre-existing repoclosure problem: %s', problem_msg)
-                    else:
-                        problems.append(problem_msg)
-        return sorted(problems)
+            jobs = (solvable.Selection().jobs(solv.Job.SOLVER_INSTALL) +
+                    obs_sel.jobs(solv.Job.SOLVER_ERASE) +
+                    existing_obs_sel.jobs(solv.Job.SOLVER_ERASE))
+            solver_problems = solver.solve(jobs)
+            if solver_problems:
+                problem_msgs = [six.text_type(p) for p in solver_problems]
+                # If it's a pre-existing problem with repos (that is, the 
+                # problem also exists when the packages under test are 
+                # excluded) then warn about it here but don't consider it 
+                # a problem.
+                jobs = (solvable.Selection().jobs(solv.Job.SOLVER_INSTALL) +
+                        existing_obs_sel.jobs(solv.Job.SOLVER_ERASE))
+                existing_problems = solver.solve(jobs)
+                if existing_problems:
+                    for p in existing_problems:
+                        logger.warn('Ignoring pre-existing repoclosure problem: %s', p)
+                else:
+                    problems.extend(problem_msgs)
+        return problems
+
+    def _files_in_solvable(self, solvable):
+        iterator = solvable.Dataiterator(self.pool.str2id('solvable:filelist'), None,
+                solv.Dataiterator.SEARCH_FILES | solv.Dataiterator.SEARCH_COMPLETE_FILELIST)
+        return [match.str for match in iterator]
+
+    def _solvables_with_file(self, filename):
+        iterator = self.pool.Dataiterator(self.pool.str2id('solvable:filelist'),
+                filename,
+                solv.Dataiterator.SEARCH_STRING |
+                solv.Dataiterator.SEARCH_FILES |
+                solv.Dataiterator.SEARCH_COMPLETE_FILELIST)
+        return [match.solvable for match in iterator]
 
     def _packages_can_be_installed_together(self, left, right):
         """
-        Returns True if the given packages can be installed together and False
-        if it runs into a conflict or indirect Requires relationship method.
+        Returns True if the given packages can be installed together.
         """
-        # XXX there must be a better way of testing for explicit Conflicts but 
-        # the best I could find was to try solving the installation of both and 
-        # checking the problem output...
-        g = hawkey.Goal(self._sack)
-        g.install(left)
-        g.install(right)
-        g.run()
-        if g.problems and 'conflicts' in g.problems[0]:
-            logger.debug('Found explicit Conflicts between %s and %s', left, right)
+        solver = self.pool.Solver()
+        left_install_jobs = left.Selection().jobs(solv.Job.SOLVER_INSTALL)
+        right_install_jobs = right.Selection().jobs(solv.Job.SOLVER_INSTALL)
+        # First check if each one can be installed on its own. If either of 
+        # these fails it is a warning, because it means we have no way to know 
+        # if they can be installed together or not.
+        problems = solver.solve(left_install_jobs)
+        if problems:
+            logger.warn('Ignoring conflict candidate %s '
+                    'with pre-existing dependency problems: %s',
+                    left, problems[0])
             return False
-        if g.problems and \
-           six.text_type(right) in g.problems[0] and \
-           'none of the providers can be installed' in g.problems[0]:
-            logger.debug("Packages can't be installed together and won't conflict %s and %s", left, right)
+        problems = solver.solve(right_install_jobs)
+        if problems:
+            logger.warn('Ignoring conflict candidate %s '
+                    'with pre-existing dependency problems: %s',
+                    right, problems[0])
+            return False
+        problems = solver.solve(left_install_jobs + right_install_jobs)
+        if problems:
+            logger.debug('Conflict candidates %s and %s cannot be installed together: %s',
+                    left, right, problems[0])
             return False
         return True
 
@@ -231,7 +267,7 @@ class DependencyAnalyzer(object):
         ts = rpm.TransactionSet()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
 
-        left_hdr = ts.hdrFromFdno(open(left.location, 'rb'))
+        left_hdr = ts.hdrFromFdno(open(left.lookup_location()[0], 'rb'))
         right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
         left_files = rpm.files(left_hdr)
         right_files = rpm.files(right_hdr)
@@ -261,7 +297,7 @@ class DependencyAnalyzer(object):
         ts = rpm.TransactionSet()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
 
-        left_hdr = ts.hdrFromFdno(open(left.location, 'rb'))
+        left_hdr = ts.hdrFromFdno(open(left.lookup_location()[0], 'rb'))
         right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
         left_fi = rpm.fi(left_hdr)
         try:
@@ -291,26 +327,27 @@ class DependencyAnalyzer(object):
         Returns a list of strings describing each conflict found
         (or empty list if no conflicts were found).
         """
+        solver = self.pool.Solver()
         problems = []
-        for package in self.packages:
-            logger.debug('Checking all files in %s for conflicts', package)
-            for filename in package.files:
-                conflicting_packages = hawkey.Query(self._sack).filter(file=filename, latest_per_arch=True)
-                for i, conflicting in enumerate(conflicting_packages, 1):
-                    if conflicting == package:
+        for solvable in self.solvables:
+            logger.debug('Checking all files in %s for conflicts', solvable)
+            for filename in self._files_in_solvable(solvable):
+                conflict_candidates = self._solvables_with_file(filename)
+                for i, conflicting in enumerate(conflict_candidates, 1):
+                    if conflicting == solvable:
                         continue
-                    if not self._packages_can_be_installed_together(package, conflicting):
+                    if not self._packages_can_be_installed_together(solvable, conflicting):
                         continue
                     logger.debug('Considering conflict on %s with %s', filename, conflicting)
-                    conflicting_amount = len(conflicting_packages) - i
-                    if not self._file_conflict_is_permitted(package, conflicting, filename):
+                    conflicting_amount = len(conflict_candidates) - i
+                    if not self._file_conflict_is_permitted(solvable, conflicting, filename):
                         msg = u'{} provides {} which is also provided by {}'.format(
-                            six.text_type(package), filename, six.text_type(conflicting))
+                            six.text_type(solvable), filename, six.text_type(conflicting))
                         problems.append(msg)
 
                     if conflicting_amount:
-                        logger.debug('Skipping {} further conflict checks on {} for {}'.format(
-                            conflicting_amount, six.text_type(package), filename))
+                        logger.debug('Skipping %s further conflict checks on %s for %s',
+                                conflicting_amount, solvable, filename)
                     break
         return sorted(problems)
 
@@ -321,14 +358,36 @@ class DependencyAnalyzer(object):
         Returns a list of strings describing each upgrade problem found (or 
         empty list if no problems were found).
         """
-        problems = []
-        for package in self.packages:
-            logger.debug('Finding packages newer than %s', package)
-            for newer in hawkey.Query(self._sack).filter(name=package.name, arch=package.arch, evr__gt=package.evr):
-                problems.append(u'{} would be upgraded by {} from repo {}'.format(
-                        six.text_type(package), six.text_type(newer), newer.reponame))
-            logger.debug('Finding packages obsoleting %s', package)
-            for obsoleting in hawkey.Query(self._sack).filter(obsoletes=[package]):
-                problems.append(u'{} would be obsoleted by {} from repo {}'.format(
-                        six.text_type(package), six.text_type(obsoleting), obsoleting.reponame))
-        return sorted(problems)
+        # Pretend the packages under test are installed, then solve a distupgrade.
+        # If any package under test would be erased, then it means some other 
+        # package in the repos is better than it and we have a problem.
+        self.pool.installed = self.commandline_repo
+        try:
+            jobs = self.pool.Selection_all().jobs(solv.Job.SOLVER_UPDATE)
+            solver = self.pool.Solver()
+            solver.set_flag(solver.SOLVER_FLAG_ALLOW_UNINSTALL, True)
+            solver_problems = solver.solve(jobs)
+            for problem in solver_problems:
+                # This is a warning, not an error, because it means there are 
+                # some *other* problems with existing packages in the 
+                # repository, not our packages under test. But it means our 
+                # results here might not be valid.
+                logger.warn('Upgrade candidate has pre-existing dependency problem: %s', problem)
+            transaction = solver.transaction()
+            problems = []
+            for solvable in self.solvables:
+                action = transaction.steptype(solvable, transaction.SOLVER_TRANSACTION_SHOW_OBSOLETES)
+                other = transaction.othersolvable(solvable)
+                if action == transaction.SOLVER_TRANSACTION_IGNORE:
+                    continue # it's kept, so no problem here
+                elif action == transaction.SOLVER_TRANSACTION_UPGRADED:
+                    problems.append(u'{} would be upgraded by {} from repo {}'.format(
+                            six.text_type(solvable), six.text_type(other), other.repo.name))
+                elif action == transaction.SOLVER_TRANSACTION_OBSOLETED:
+                    problems.append(u'{} would be obsoleted by {} from repo {}'.format(
+                            six.text_type(solvable), six.text_type(other), other.repo.name))
+                else:
+                    raise RuntimeError('Unrecognised transaction step type %s' % action)
+            return problems
+        finally:
+            self.pool.installed = None

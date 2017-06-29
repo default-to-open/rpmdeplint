@@ -39,7 +39,7 @@ def test_catches_soname_change(request, dir_server):
                                          p_newer.get_built_rpm('i386')])
     assert exitcode == 3
     assert err == ('Dependency problems with repos:\n'
-            'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
+            'package b-0.1-1.i386 requires libfoo.so.4, but none of the providers can be installed\n')
 
 
 def test_catches_soname_change_with_package_rename(request, dir_server):
@@ -70,7 +70,7 @@ def test_catches_soname_change_with_package_rename(request, dir_server):
                                          p_newer.get_built_rpm('i386')])
     assert exitcode == 3
     assert err == ('Dependency problems with repos:\n'
-            'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
+            'package b-0.1-1.i386 requires libfoo.so.4, but none of the providers can be installed\n')
 
 
 def test_ignores_dependency_problems_in_packages_under_test(request, dir_server):

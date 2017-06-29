@@ -15,7 +15,6 @@ import glob
 import time
 from six.moves import configparser
 import librepo
-import hawkey
 
 logger = logging.getLogger(__name__)
 
@@ -115,13 +114,6 @@ class Repo(object):
             raise RuntimeError('Must specify either baseurl or metalink for repo')
         self.baseurl = baseurl
         self.metalink = metalink
-
-    def as_hawkey_repo(self):
-        repo = hawkey.Repo(self.name)
-        repo.repomd_fn = self.repomd_fn
-        repo.primary_fn = self.primary_fn
-        repo.filelists_fn = self.filelists_fn
-        return repo
 
     def download_repodata(self):
         logger.debug('Loading repodata for %s from %s', self.name,

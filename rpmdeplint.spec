@@ -40,12 +40,12 @@ BuildRequires:  python2-pytest
 BuildRequires:  python2-rpmfluff
 BuildRequires:  python2-six
 BuildRequires:  python2-rpm
-BuildRequires:  python2-hawkey
+BuildRequires:  python2-solv
 BuildRequires:  python2-librepo
 BuildRequires:  python2-requests
 Requires:       python2-six
 Requires:       python2-rpm
-Requires:       python2-hawkey
+Requires:       python2-solv
 Requires:       python2-librepo
 Requires:       python2-requests
 %else
@@ -58,12 +58,12 @@ BuildRequires:  python-rpmfluff
 %endif
 BuildRequires:  python-six
 BuildRequires:  rpm-python
-BuildRequires:  python-hawkey
+BuildRequires:  python2-solv
 BuildRequires:  python-librepo
 BuildRequires:  python-requests
 Requires:       python-six
 Requires:       rpm-python
-Requires:       python-hawkey
+Requires:       python2-solv
 Requires:       python-librepo
 Requires:       python-requests
 %endif
@@ -88,7 +88,7 @@ BuildRequires:  python3-rpm
 %else
 BuildRequires:  rpm-python3
 %endif
-BuildRequires:  python3-hawkey
+BuildRequires:  python3-solv
 BuildRequires:  python3-librepo
 BuildRequires:  python3-requests
 Requires:       python3-six
@@ -97,7 +97,7 @@ Requires:       python3-rpm
 %else
 Requires:       rpm-python3
 %endif
-Requires:       python3-hawkey
+Requires:       python3-solv
 Requires:       python3-librepo
 Requires:       python3-requests
 

@@ -53,7 +53,7 @@ def test_finds_all_problems(request, dir_server):
     assert err == ('Problems with dependency set:\n'
             'nothing provides doesnotexist needed by e-1.0-1.i386\n'
             'Dependency problems with repos:\n'
-            'nothing provides libfoo.so.4 needed by d-0.1-1.i386\n'
+            'package d-0.1-1.i386 requires libfoo.so.4, but none of the providers can be installed\n'
             'Undeclared file conflicts:\n'
             'f-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'Upgrade problems:\n'
