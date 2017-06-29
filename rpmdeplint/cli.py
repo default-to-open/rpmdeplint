@@ -10,7 +10,7 @@ import sys
 import logging
 import argparse
 import pkg_resources
-from rpmdeplint import DependencyAnalyzer, get_hawkey_package_arch
+from rpmdeplint import DependencyAnalyzer
 from rpmdeplint.repodata import Repo, RepoDownloadError, PackageDownloadError
 
 logger = logging.getLogger(__name__)
@@ -141,19 +141,7 @@ def dependency_analyzer_from_args(args):
         repos.extend(Repo.from_yum_config())
     repos.extend(args.repos)
     rpms = list(args.rpms)
-    if not args.arch:
-        sack_arches = {get_hawkey_package_arch(rpm) for rpm in rpms} - {'noarch'}
-        if len(sack_arches) >= 2:
-            raise argparse.ArgumentTypeError(
-                u"Testing multiple incompatible package architectures is "
-                u"not currently supported: {}".format(', '.join(sack_arches)))
-        if not sack_arches:
-            raise argparse.ArgumentTypeError(
-                'Cannot determine test arch from noarch packages, '
-                'pass --arch option explicitly')
-        arch = sack_arches.pop()
-    else:
-        arch = args.arch
+    arch = args.arch
 
     return DependencyAnalyzer(repos, rpms, arch=arch)
 
@@ -175,7 +163,7 @@ def add_common_dependency_analyzer_args(parser):
     parser.add_argument('--repos-from-system', action='store_true',
             help='Test against system repos from /etc/yum.repos.d/')
     parser.add_argument('--arch', dest='arch', default=None,
-            help='Test against ARCH [default: determined from RPM packages]')
+            help='Limit dependency resolution to ARCH packages [default: any arch]')
 
 
 def main():
