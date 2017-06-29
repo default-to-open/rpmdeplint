@@ -20,6 +20,14 @@ import ctypes
 logger = logging.getLogger(__name__)
 
 
+class UnreadablePackageError(Exception):
+    """
+    Raised if an RPM package cannot be read from disk (it's corrupted, or the 
+    file is not a valid RPM package, etc).
+    """
+    pass
+
+
 class DependencySet(object):
     def __init__(self):
         self._packagedeps = defaultdict(lambda: dict(dependencies=[],problems=[]))
@@ -71,6 +79,10 @@ class DependencyAnalyzer(object):
         self.commandline_repo = self.pool.add_repo('@commandline')
         for rpmpath in packages:
             solvable = self.commandline_repo.add_rpm(rpmpath)
+            if solvable is None:
+                # pool.errstr is already prefixed with the filename
+                raise UnreadablePackageError('Failed to read package: %s'
+                        % self.pool.errstr)
             self.solvables.append(solvable)
 
         self.repos_by_name = {}  #: mapping of (reponame, rpmdeplint.Repo)

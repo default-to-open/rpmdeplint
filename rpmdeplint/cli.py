@@ -10,7 +10,7 @@ import sys
 import logging
 import argparse
 import pkg_resources
-from rpmdeplint import DependencyAnalyzer
+from rpmdeplint import DependencyAnalyzer, UnreadablePackageError
 from rpmdeplint.repodata import Repo, RepoDownloadError, PackageDownloadError
 
 logger = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ def main():
         return args.func(args)
     except argparse.ArgumentTypeError as exc:
         parser.error(str(exc))
-    except (RepoDownloadError, PackageDownloadError) as exc:
+    except (UnreadablePackageError, RepoDownloadError, PackageDownloadError) as exc:
         sys.stderr.write('%s\n' % exc)
         return 1
 

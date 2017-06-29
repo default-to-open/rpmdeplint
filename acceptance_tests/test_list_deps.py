@@ -99,3 +99,27 @@ def test_erroneous_cli_input_errors():
                                           '--derp'])
 
     assert exitcode == 2
+
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1382531
+def test_handles_invalid_rpm_without_crashing(request, dir_server, tmpdir):
+    p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['i386'])
+    baserepo = rpmfluff.YumRepoBuild([p2])
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    # To trigger this bug, the contents of the invalid RPM are irrelevant but 
+    # the filename must end in '.rpm'.
+    broken_package = tmpdir.join('broken.rpm')
+    broken_package.write('lol\n')
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p2.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'list-deps',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         broken_package.strpath])
+    assert exitcode == 1
+    assert err == 'Failed to read package: {}: not a rpm\n'.format(broken_package.strpath)
