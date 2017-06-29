@@ -40,15 +40,15 @@ def get_yumvars():
     # This is not all the yumvars, but hopefully good enough...
 
     try:
-        import dnf, dnf.rpm
+        import dnf.conf.substitutions, dnf.rpm
     except ImportError:
         pass
     else:
-        return {
-            'arch': hawkey.detect_arch(),
-            'basearch': dnf.rpm.basearch(hawkey.detect_arch()),
-            'releasever': dnf.rpm.detect_releasever('/'),
-        }
+        installroot = ''
+        subst = dnf.conf.substitutions.Substitutions()
+        subst.update_from_etc(installroot)
+        subst['releasever'] = dnf.rpm.detect_releasever(installroot)
+        return subst
 
     try:
         import yum, yum.config, rpmUtils
