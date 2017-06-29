@@ -12,7 +12,7 @@ class build(_build):
 # Note that we have some scripts which programmatically change the version
 # declared here. Do not adjust the formatting.
 name = 'rpmdeplint'
-version = '1.3'
+version = '1.4'
 release = version
 
 setup(name='rpmdeplint',

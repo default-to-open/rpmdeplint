@@ -1,12 +1,28 @@
 Changelog
 ---------
 
-1.4
+2.0
 ~~~
 
 * Added yum repository caching which performs regular cleans for files more than
   one week old. This expiry period can be modified with the environment
   variable ``RPMDEPLINT_EXPIRY_SECONDS``.
+
+1.4
+~~~
+
+* Fixed handling of the ``xml:base`` attribute in repodata. Previously, if
+  a repo used ``xml:base`` to refer to packages stored at a different URL, 
+  rpmdeplint would fail to download them when it performed conflict checking 
+  (`RHBZ#1448768 <https://bugzilla.redhat.com/show_bug.cgi?id=1448768>`__).
+
+* If a package fails to download, a clean error message is now reported.
+  Previously this would result in an unhandled exception, which triggered abrt 
+  handling
+  (`RHBZ#1423678 <https://bugzilla.redhat.com/show_bug.cgi?id=1423678>`__).
+
+* Fixed usage message when no subcommand is given on Python 3.3+
+  (`RHBZ#1445990 <https://bugzilla.redhat.com/show_bug.cgi?id=1445990>`__).
 
 1.3
 ~~~

@@ -1,5 +1,5 @@
 
-%global upstream_version 1.3
+%global upstream_version 1.4
 
 # Note that EPEL7 *does* have a Python 3 stack, but we are still missing
 # Python 3 bindings for RPM so we don't build any Python 3 support on EPEL7.
@@ -10,7 +10,7 @@
 %endif
 
 Name:           rpmdeplint
-Version:        1.3
+Version:        1.4
 Release:        1%{?dist}
 Summary:        Tool to find errors in RPM packages in the context of their dependency graph
 License:        GPLv2+
