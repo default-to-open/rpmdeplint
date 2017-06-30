@@ -22,6 +22,7 @@ from six.moves import configparser
 import librepo
 
 logger = logging.getLogger(__name__)
+requests_session = requests.Session()
 
 
 REPO_CACHE_DIR = os.path.join(os.sep, 'var', 'tmp')
@@ -235,10 +236,10 @@ class Repo(object):
             os.close(fd)
             raise
         try:
-            with requests.Session() as session:
-                data = session.get(url, stream=True)
-                for chunk in data.iter_content():
-                    f.write(chunk)
+            response = requests_session.get(url, stream=True)
+            for chunk in response.iter_content():
+                f.write(chunk)
+            response.close()
             f.flush()
             f.seek(0)
             os.fchmod(f.fileno(), 0o644)
