@@ -183,6 +183,39 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
     assert os.path.exists(second_filelists_cache_path)
 
 
+def test_migrates_old_cache_layout(request, dir_server):
+    base_cache_dir = os.path.join(os.environ.get('XDG_CACHE_HOME',
+        os.path.join(os.path.expanduser('~'), '.cache')), 'rpmdeplint')
+
+    p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
+    repo = rpmfluff.YumRepoBuild([p1])
+    repo.make('i386')
+    dir_server.basepath = repo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(repo.repoDir)
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    primary_fn, = [fn for fn in os.listdir(os.path.join(repo.repoDir, 'repodata')) if fn.endswith('primary.xml.gz')]
+    primary_checksum = primary_fn.split('-', 1)[0]
+    old_cache_path = os.path.join(base_cache_dir, primary_checksum[:1], primary_checksum[1:], primary_fn)
+    new_cache_path = os.path.join(base_cache_dir, primary_checksum[:1], primary_checksum[1:])
+
+    # Simulate the old cache path left over from an older version of rpmdeplint
+    os.makedirs(os.path.dirname(old_cache_path))
+    with open(old_cache_path, 'w') as f:
+        f.write('lol\n')
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check',
+            '--repo=base,{}'.format(dir_server.url),
+            p1.get_built_rpm('i386')])
+    assert exitcode == 0
+    assert err == ''
+    assert not os.path.exists(old_cache_path)
+    assert os.path.isfile(new_cache_path)
+
+
 def test_prints_error_on_repo_download_failure(request, dir_server):
     # Specifically we don't want an unhandled exception, because that triggers abrt.
     test_tool_rpm = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['x86_64'])

@@ -7,6 +7,7 @@
 from __future__ import absolute_import
 
 import os
+import shutil
 import logging
 import tempfile
 import requests
@@ -179,7 +180,15 @@ class Repo(object):
             logger.debug('Using cached file %s for %s', filepath_in_cache, url)
             return f
         except IOError as e:
-            if e.errno != errno.ENOENT:
+            if e.errno == errno.ENOENT:
+                pass # cache entry does not exist, we will download it
+            elif e.errno == errno.EISDIR:
+                # This is the original cache directory layout, merged in commit 
+                # 6f11c3708 although it didn't appear in any released version 
+                # of rpmdeplint. To be helpful we will fix it up, by just 
+                # deleting the directory and letting it be replaced by a file.
+                shutil.rmtree(filepath_in_cache, ignore_errors=True)
+            else:
                 raise
         try:
             os.makedirs(os.path.dirname(filepath_in_cache))
