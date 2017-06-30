@@ -133,8 +133,15 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
     firstrepo.make('i386')
     dir_server.basepath = firstrepo.repoDir
 
-    run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
-        dir_server.url), p1.get_built_rpm('i386')])
+    def cleanup():
+        shutil.rmtree(firstrepo.repoDir)
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanup)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check',
+            '--repo=base,{}'.format(dir_server.url),
+            p1.get_built_rpm('i386')])
+    assert exitcode == 0
 
     def get_file_cache_path(repodir, file_type):
         temp_path = glob.iglob(os.path.join(repodir, 'repodata', file_type))
@@ -157,18 +164,18 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
     secondrepo.make('i386')
     dir_server.basepath = secondrepo.repoDir
 
+    def cleanup2():
+        shutil.rmtree(secondrepo.repoDir)
+        shutil.rmtree(p2.get_base_dir())
+    request.addfinalizer(cleanup2)
+
     # ensure time period of cache has expired
     time.sleep(2)
 
-    def cleanUp():
-        shutil.rmtree(firstrepo.repoDir)
-        shutil.rmtree(secondrepo.repoDir)
-        shutil.rmtree(p1.get_base_dir())
-        shutil.rmtree(p2.get_base_dir())
-    request.addfinalizer(cleanUp)
-
-    run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
-        dir_server.url), p2.get_built_rpm('i386')])
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check',
+            '--repo=base,{}'.format(dir_server.url),
+            p2.get_built_rpm('i386')])
+    assert exitcode == 0
 
     # files are stored in cache_path /.cache/checksum[1:]/checksum[:1]
     second_primary_cache_path = get_file_cache_path(secondrepo.repoDir,

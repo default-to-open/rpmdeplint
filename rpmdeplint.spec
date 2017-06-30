@@ -43,11 +43,13 @@ BuildRequires:  python2-rpm
 BuildRequires:  python2-solv
 BuildRequires:  python2-librepo
 BuildRequires:  python2-requests
+BuildRequires:  python2-scandir
 Requires:       python2-six
 Requires:       python2-rpm
 Requires:       python2-solv
 Requires:       python2-librepo
 Requires:       python2-requests
+Requires:       python2-scandir
 %else
 BuildRequires:  python-sphinx
 BuildRequires:  pytest
@@ -61,11 +63,13 @@ BuildRequires:  rpm-python
 BuildRequires:  python2-solv
 BuildRequires:  python-librepo
 BuildRequires:  python-requests
+BuildRequires:  python-scandir
 Requires:       python-six
 Requires:       rpm-python
 Requires:       python2-solv
 Requires:       python-librepo
 Requires:       python-requests
+Requires:       python-scandir
 %endif
 
 %description -n python2-%{name}

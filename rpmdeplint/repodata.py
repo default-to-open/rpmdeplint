@@ -7,6 +7,10 @@
 from __future__ import absolute_import
 
 import os
+try:
+    from os import scandir # Python 3.5+
+except ImportError:
+    from scandir import scandir
 import shutil
 import logging
 import tempfile
@@ -86,6 +90,27 @@ def cache_entry_path(checksum):
     return os.path.join(cache_base_path(), checksum[:1], checksum[1:])
 
 
+def clean_cache():
+    expiry_time = time.time() - float(os.environ.get('RPMDEPLINT_EXPIRY_SECONDS', '604800'))
+    try:
+        subdirs = scandir(cache_base_path())
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return # nothing to do
+        else:
+            raise
+    for subdir in subdirs:
+        # Should be a subdirectory named after the first checksum letter
+        if not subdir.is_dir(follow_symlinks=False):
+            continue
+        for entry in scandir(subdir.path):
+            if not entry.is_file(follow_symlinks=False):
+                continue
+            if entry.stat().st_mtime < expiry_time:
+                logger.debug('Purging expired cache file %s', entry.path)
+                os.unlink(entry.path)
+
+
 class Repo(object):
 
     yum_main_config_path = '/etc/yum.conf'
@@ -127,6 +152,7 @@ class Repo(object):
         self.metalink = metalink
 
     def download_repodata(self):
+        clean_cache()
         logger.debug('Loading repodata for %s from %s', self.name,
             self.baseurl or self.metalink)
         self.librepo_handle = h = librepo.Handle()
@@ -174,7 +200,6 @@ class Repo(object):
         accessed before written to cache.
         """
         filepath_in_cache = cache_entry_path(checksum)
-        self.clean_expired_cache(cache_base_path())
         try:
             f = open(filepath_in_cache, 'rb')
             logger.debug('Using cached file %s for %s', filepath_in_cache, url)
@@ -218,20 +243,6 @@ class Repo(object):
             os.unlink(temp_path)
             raise
 
-    def clean_expired_cache(self, root_path):
-        """
-        Removes any file within the directory tree that is older than the
-        given value in RPMDEPLINT_EXPIRY_SECONDS environment variable.
-        """
-        current_time = time.time()
-        for root, dirs, files in os.walk(root_path):
-            for fd in files:
-                file_path = os.path.join(root, fd)
-                modified = os.stat(file_path).st_mtime
-                if modified < current_time - self.expiry_seconds:
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-
     def download_package(self, location, baseurl, checksum_type, checksum):
         if self.librepo_handle.local:
             local_path = os.path.join(self._root_path, location)
@@ -272,9 +283,6 @@ class Repo(object):
     @property
     def filelists_url(self):
         return os.path.join(self.baseurl, self.yum_repomd['filelists']['location_href'])
-    @property
-    def expiry_seconds(self):
-        return float(os.getenv('RPMDEPLINT_EXPIRY_SECONDS', '604800'))
 
     def __repr__(self):
         if self.baseurl:
