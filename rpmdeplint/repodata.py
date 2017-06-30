@@ -237,7 +237,7 @@ class Repo(object):
             raise
         try:
             response = requests_session.get(url, stream=True)
-            for chunk in response.iter_content():
+            for chunk in response.raw.stream(decode_content=False):
                 f.write(chunk)
             response.close()
             f.flush()
