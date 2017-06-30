@@ -20,6 +20,28 @@ import ctypes
 logger = logging.getLogger(__name__)
 
 
+installonlypkgs = [
+    # The default 'installonlypkgs' from dnf
+    # https://github.com/rpm-software-management/dnf/blob/dnf-2.5.1-1/dnf/const.py.in#L28
+    'kernel',
+    'kernel-PAE',
+    'installonlypkg(kernel)',
+    'installonlypkg(kernel-module)',
+    'installonlypkg(vm)',
+    # Additional names which yum 3.4.3 (RHEL7) has in its default 'installonlypkgs'
+    # https://github.com/rpm-software-management/yum/blob/cf8a5669165e958d56157abf40d0cdd552c8fbf9/yum/config.py#L650
+    'kernel-bigmem',
+    'kernel-enterprise',
+    'kernel-smp',
+    'kernel-modules',
+    'kernel-debug',
+    'kernel-unsupported',
+    'kernel-source',
+    'kernel-devel',
+    'kernel-PAE-debug',
+]
+
+
 class UnreadablePackageError(Exception):
     """
     Raised if an RPM package cannot be read from disk (it's corrupted, or the 
@@ -98,6 +120,16 @@ class DependencyAnalyzer(object):
 
         self.pool.addfileprovides()
         self.pool.createwhatprovides()
+
+        # Special handling for "installonly" packages: we create jobs to mark 
+        # installonly package names as "multiversion" and then set those as 
+        # pool jobs, which means the jobs are automatically applied whenever we 
+        # run the solver on this pool.
+        multiversion_jobs = []
+        for name in installonlypkgs:
+            selection = self.pool.select(name, solv.Selection.SELECTION_PROVIDES)
+            multiversion_jobs.extend(selection.jobs(solv.Job.SOLVER_MULTIVERSION))
+        self.pool.setpooljobs(multiversion_jobs)
 
     def __enter__(self):
         return self

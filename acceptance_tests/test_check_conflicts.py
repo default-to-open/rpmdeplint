@@ -301,6 +301,38 @@ def test_conflict_is_ignored_if_not_installable_concurrently(request, dir_server
     assert out == ''
 
 
+# https://bugzilla.redhat.com/show_bug.cgi?id=1465734
+def test_finds_conflicts_in_installonly_packages(request, dir_server):
+    kernel1 = rpmfluff.SimpleRpmBuild('kernel-core', '0.1', '1', ['i386'])
+    kernel1.add_installed_file(installPath='usr/share/licenses/kernel-core/COPYING',
+            sourceFile=rpmfluff.SourceFile('COPYING', 'content\n'))
+    # The modern mechanism for telling DNF a package is installonly is to add this virtual provide.
+    kernel1.add_provides('installonlypkg(kernel)')
+    baserepo = rpmfluff.YumRepoBuild([kernel1])
+    baserepo.make('i386')
+    dir_server.basepath = baserepo.repoDir
+
+    kernel2 = rpmfluff.SimpleRpmBuild('kernel-core', '0.2', '1', ['i386'])
+    kernel2.add_installed_file(installPath='usr/share/licenses/kernel-core/COPYING',
+            sourceFile=rpmfluff.SourceFile('COPYING', 'different content\n'))
+    kernel2.add_provides('installonlypkg(kernel)')
+    kernel2.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(kernel1.get_base_dir())
+        shutil.rmtree(kernel2.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-conflicts',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         kernel2.get_built_rpm('i386')])
+    assert exitcode == 3
+    assert err == ('Undeclared file conflicts:\n'
+            'kernel-core-0.2-1.i386 provides /usr/share/licenses/kernel-core/COPYING '
+            'which is also provided by kernel-core-0.1-1.i386\n')
+
+
 # https://bugzilla.redhat.com/show_bug.cgi?id=1448768
 def test_obeys_xml_base_when_downloading_packages(request, tmpdir, dir_server):
     p2 = rpmfluff.SimpleRpmBuild('b', '0.1', '1', ['x86_64'])
