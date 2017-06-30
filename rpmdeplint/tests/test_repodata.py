@@ -108,9 +108,3 @@ def test_bad_repo_url_raises_error(yumdir):
         repos[0].download_repodata()
     assert 'Cannot download repomd.xml' in str(rde.value)
     assert "repo_name='dummy'" in str(rde.value)
-
-
-def test_set_cache_expiry_in_seconds(monkeypatch):
-    monkeypatch.setenv('RPMDEPLINT_EXPIRY_SECONDS', '100')
-    repo = Repo(repo_name='Dummy', baseurl='http://example.invalid/dummy')
-    assert repo.expiry_seconds == 100

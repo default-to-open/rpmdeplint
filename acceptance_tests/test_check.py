@@ -141,7 +141,7 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
         primary_fn = os.path.basename(next(temp_path))
         primary_fn_checksum = primary_fn.split('-')[0]
         return os.path.join(base_cache_dir, primary_fn_checksum[:1],
-            primary_fn_checksum[1:], primary_fn)
+            primary_fn_checksum[1:])
 
     # files are stored in cache_path /.cache/checksum[1:]/checksum[:1]
     first_primary_cache_path = get_file_cache_path(firstrepo.repoDir,

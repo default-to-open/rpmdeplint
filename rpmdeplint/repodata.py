@@ -75,6 +75,16 @@ def substitute_yumvars(s, yumvars):
     return s
 
 
+def cache_base_path():
+    default_cache_home = os.path.join(os.path.expanduser('~'), '.cache')
+    cache_home = os.environ.get('XDG_CACHE_HOME', default_cache_home)
+    return os.path.join(cache_home, 'rpmdeplint')
+
+
+def cache_entry_path(checksum):
+    return os.path.join(cache_base_path(), checksum[:1], checksum[1:])
+
+
 class Repo(object):
 
     yum_main_config_path = '/etc/yum.conf'
@@ -133,16 +143,16 @@ class Repo(object):
             self._download_metadata_result(h, r)
             self._yum_repomd = r.yum_repomd
             self._root_path = self.baseurl
-            self.primary_fn = self.primary_url
-            self.filelists_fn = self.filelists_url
+            self.primary = open(self.primary_url, 'rb')
+            self.filelists = open(self.filelists_url, 'rb')
         else:
             self._root_path = h.destdir = tempfile.mkdtemp(self.name,
                 prefix=REPO_CACHE_NAME_PREFIX, dir=REPO_CACHE_DIR)
             self._download_metadata_result(h, r)
             self._yum_repomd = r.yum_repomd
-            self.primary_fn = self._download_repodata_file(
+            self.primary = self._download_repodata_file(
                 self.primary_checksum, self.primary_url)
-            self.filelists_fn = self._download_repodata_file(
+            self.filelists = self._download_repodata_file(
                 self.filelists_checksum, self.filelists_url)
 
     def _download_metadata_result(self, handle, result):
@@ -156,36 +166,48 @@ class Repo(object):
         """
         Each created file in cache becomes immutable, and is referenced in
         the directory tree within XDG_CACHE_HOME as
-        $XDG_CACHE_HOME/<checksum-type>/<checksum-first-letter>/<rest-of
-        -checksum>
+        $XDG_CACHE_HOME/rpmdeplint/<checksum-first-letter>/<rest-of-checksum>
 
         Both metadata and the files to be cached are written to a tempdir first
         then renamed to the cache dir atomically to avoid them potentially being
         accessed before written to cache.
         """
-        filepath_in_cache = os.path.join(os.path.join(self.cache_basedir,
-            checksum[:1], checksum[1:], os.path.basename(url)))
-        self.clean_expired_cache(self.cache_basedir)
+        filepath_in_cache = cache_entry_path(checksum)
+        self.clean_expired_cache(cache_base_path())
         try:
-            with open(filepath_in_cache, 'r+'):
-                logger.debug('Using cached file for %s', self.name)
-                return filepath_in_cache
-        except IOError:
-            pass # download required
+            f = open(filepath_in_cache, 'rb')
+            logger.debug('Using cached file %s for %s', filepath_in_cache, url)
+            return f
+        except IOError as e:
+            if e.errno != errno.ENOENT:
+                raise
         try:
             os.makedirs(os.path.dirname(filepath_in_cache))
         except OSError as e:
             if e.errno != errno.EEXIST:
-                logger.debug('Cache directory %s already exists',
-                    os.path.dirname(filepath_in_cache))
                 raise
-        fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(filepath_in_cache))
-        with requests.Session() as session, os.fdopen(fd, 'wb+') as temp_file:
-            data = session.get(url, stream=True)
-            for chunk in data.iter_content():
-                temp_file.write(chunk)
-        os.rename(temp_path, filepath_in_cache)
-        return filepath_in_cache
+        fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(filepath_in_cache), text=False)
+        logger.debug('Downloading %s to cache temp file %s', url, temp_path)
+        try:
+            f = os.fdopen(fd, 'wb+')
+        except:
+            os.close(fd)
+            raise
+        try:
+            with requests.Session() as session:
+                data = session.get(url, stream=True)
+                for chunk in data.iter_content():
+                    f.write(chunk)
+            f.flush()
+            f.seek(0)
+            os.fchmod(f.fileno(), 0o644)
+            os.rename(temp_path, filepath_in_cache)
+            logger.debug('Using cached file %s for %s', filepath_in_cache, url)
+            return f
+        except:
+            f.close()
+            os.unlink(temp_path)
+            raise
 
     def clean_expired_cache(self, root_path):
         """
@@ -241,10 +263,6 @@ class Repo(object):
     @property
     def filelists_url(self):
         return os.path.join(self.baseurl, self.yum_repomd['filelists']['location_href'])
-    @property
-    def cache_basedir(self):
-        return os.path.join(os.environ.get('XDG_CACHE_HOME',
-            os.path.join(os.path.expanduser('~'), '.cache')), 'rpmdeplint')
     @property
     def expiry_seconds(self):
         return float(os.getenv('RPMDEPLINT_EXPIRY_SECONDS', '604800'))
