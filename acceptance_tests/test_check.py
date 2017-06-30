@@ -10,6 +10,21 @@ import time
 import shutil
 import rpmfluff
 from data_setup import run_rpmdeplint
+from rpmdeplint.repodata import cache_base_path
+
+
+def expected_cache_path(repodir, suffix, old=False):
+    """
+    For the test repo located in *repodir*, return the path within the 
+    rpmdeplint cache where we expect the metadata file with given suffix
+    to appear after rpmdeplint has downloaded it.
+    """
+    filename, = [filename for filename in os.listdir(os.path.join(repodir, 'repodata'))
+                 if filename.endswith(suffix)]
+    checksum = filename.split('-', 1)[0]
+    if old:
+        return os.path.join(cache_base_path(), checksum[:1], checksum[1:], filename)
+    return os.path.join(cache_base_path(), checksum[:1], checksum[1:])
 
 
 def test_finds_all_problems(request, dir_server):
@@ -107,6 +122,10 @@ def test_cache_is_used_when_available(request, dir_server):
     run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
         dir_server.url), p1.get_built_rpm('i386')])
 
+    cache_path = expected_cache_path(baserepo.repoDir, 'primary.xml.gz')
+    assert os.path.exists(cache_path)
+    original_cache_mtime = os.path.getmtime(cache_path)
+
     # A single run of rpmdeplint with a clean cache should expect network
     # requests for - repomd.xml, primary.xml.gz and filelists.xml.gz. Requiring
     # a total of 3
@@ -114,6 +133,9 @@ def test_cache_is_used_when_available(request, dir_server):
 
     run_rpmdeplint(['rpmdeplint', 'check', '--repo=base,{}'.format(
         dir_server.url), p1.get_built_rpm('i386')])
+
+    new_cache_mtime = os.path.getmtime(cache_path)
+    assert new_cache_mtime > original_cache_mtime
 
     # Executing 2 subprocesses should expect 4 requests if repodata cache is
     # functioning correctly. A single request for each file in the repo
@@ -125,8 +147,6 @@ def test_cache_is_used_when_available(request, dir_server):
 
 def test_cache_doesnt_grow_unboundedly(request, dir_server):
     os.environ['RPMDEPLINT_EXPIRY_SECONDS'] = '1'
-    base_cache_dir = os.path.join(os.environ.get('XDG_CACHE_HOME',
-        os.path.join(os.path.expanduser('~'), '.cache')), 'rpmdeplint')
 
     p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
     firstrepo = rpmfluff.YumRepoBuild((p1, ))
@@ -143,18 +163,8 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
             p1.get_built_rpm('i386')])
     assert exitcode == 0
 
-    def get_file_cache_path(repodir, file_type):
-        temp_path = glob.iglob(os.path.join(repodir, 'repodata', file_type))
-        primary_fn = os.path.basename(next(temp_path))
-        primary_fn_checksum = primary_fn.split('-')[0]
-        return os.path.join(base_cache_dir, primary_fn_checksum[:1],
-            primary_fn_checksum[1:])
-
-    # files are stored in cache_path /.cache/checksum[1:]/checksum[:1]
-    first_primary_cache_path = get_file_cache_path(firstrepo.repoDir,
-        '*-primary.xml.gz')
-    first_filelists_cache_path = get_file_cache_path(firstrepo.repoDir,
-        '*-filelists.xml.gz')
+    first_primary_cache_path = expected_cache_path(firstrepo.repoDir, 'primary.xml.gz')
+    first_filelists_cache_path = expected_cache_path(firstrepo.repoDir, 'filelists.xml.gz')
 
     assert os.path.exists(first_primary_cache_path)
     assert os.path.exists(first_filelists_cache_path)
@@ -177,11 +187,8 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
             p2.get_built_rpm('i386')])
     assert exitcode == 0
 
-    # files are stored in cache_path /.cache/checksum[1:]/checksum[:1]
-    second_primary_cache_path = get_file_cache_path(secondrepo.repoDir,
-        '*-primary.xml.gz')
-    second_filelists_cache_path = get_file_cache_path(secondrepo.repoDir,
-        '*-filelists.xml.gz')
+    second_primary_cache_path = expected_cache_path(secondrepo.repoDir, 'primary.xml.gz')
+    second_filelists_cache_path = expected_cache_path(secondrepo.repoDir, 'filelists.xml.gz')
 
     # Ensure the cache only has files from the second one
     assert not os.path.exists(first_primary_cache_path)
@@ -191,9 +198,6 @@ def test_cache_doesnt_grow_unboundedly(request, dir_server):
 
 
 def test_migrates_old_cache_layout(request, dir_server):
-    base_cache_dir = os.path.join(os.environ.get('XDG_CACHE_HOME',
-        os.path.join(os.path.expanduser('~'), '.cache')), 'rpmdeplint')
-
     p1 = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['i386'])
     repo = rpmfluff.YumRepoBuild([p1])
     repo.make('i386')
@@ -204,10 +208,8 @@ def test_migrates_old_cache_layout(request, dir_server):
         shutil.rmtree(p1.get_base_dir())
     request.addfinalizer(cleanUp)
 
-    primary_fn, = [fn for fn in os.listdir(os.path.join(repo.repoDir, 'repodata')) if fn.endswith('primary.xml.gz')]
-    primary_checksum = primary_fn.split('-', 1)[0]
-    old_cache_path = os.path.join(base_cache_dir, primary_checksum[:1], primary_checksum[1:], primary_fn)
-    new_cache_path = os.path.join(base_cache_dir, primary_checksum[:1], primary_checksum[1:])
+    old_cache_path = expected_cache_path(repo.repoDir, 'primary.xml.gz', old=True)
+    new_cache_path = expected_cache_path(repo.repoDir, 'primary.xml.gz')
 
     # Simulate the old cache path left over from an older version of rpmdeplint
     os.makedirs(os.path.dirname(old_cache_path))

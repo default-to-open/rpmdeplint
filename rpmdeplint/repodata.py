@@ -202,8 +202,6 @@ class Repo(object):
         filepath_in_cache = cache_entry_path(checksum)
         try:
             f = open(filepath_in_cache, 'rb')
-            logger.debug('Using cached file %s for %s', filepath_in_cache, url)
-            return f
         except IOError as e:
             if e.errno == errno.ENOENT:
                 pass # cache entry does not exist, we will download it
@@ -215,6 +213,15 @@ class Repo(object):
                 shutil.rmtree(filepath_in_cache, ignore_errors=True)
             else:
                 raise
+        else:
+            logger.debug('Using cached file %s for %s', filepath_in_cache, url)
+            # Bump the modtime on the cache file we are using,
+            # since our cache expiry is LRU based on modtime.
+            if os.utime in getattr(os, 'supports_fd', []):
+                os.utime(f.fileno()) # Python 3.3+
+            else:
+                os.utime(filepath_in_cache, None)
+            return f
         try:
             os.makedirs(os.path.dirname(filepath_in_cache))
         except OSError as e:
