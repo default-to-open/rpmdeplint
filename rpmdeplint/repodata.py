@@ -45,13 +45,12 @@ def get_yumvars():
     # This is not all the yumvars, but hopefully good enough...
 
     try:
-        import dnf.conf.substitutions, dnf.rpm
+        import dnf.conf, dnf.rpm
     except ImportError:
         pass
     else:
         installroot = ''
-        subst = dnf.conf.substitutions.Substitutions()
-        subst.update_from_etc(installroot)
+        subst = dnf.conf.Conf().substitutions
         subst['releasever'] = dnf.rpm.detect_releasever(installroot)
         return subst
 
