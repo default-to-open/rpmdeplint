@@ -8,6 +8,10 @@ Changelog
   one week old. This expiry period can be modified with the environment
   variable ``RPMDEPLINT_EXPIRY_SECONDS``.
 
+* The :py:class:`rpmdeplint.DependencyAnalyzer` class no longer needs to be
+  "entered" as a context manager. The class still supports the context manager 
+  protocol as a no-op for backwards compatibility.
+
 1.4
 ~~~
 

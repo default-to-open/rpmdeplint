@@ -82,11 +82,8 @@ class DependencySet(object):
 
 
 class DependencyAnalyzer(object):
-    """Context manager which checks packages against provided repos
+    """An object which checks packages against provided repos
     for dependency satisfiability.
-
-    The analyzer will use a temporary directory to cache all downloaded
-    repository data. The cache directory will be cleaned upon exit.
     """
 
     def __init__(self, repos, packages, arch=None):
@@ -131,12 +128,14 @@ class DependencyAnalyzer(object):
             multiversion_jobs.extend(selection.jobs(solv.Job.SOLVER_MULTIVERSION))
         self.pool.setpooljobs(multiversion_jobs)
 
+    # Context manager protocol is only implemented for backwards compatibility.
+    # There are actually no resources to acquire or release.
+
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, tb):
-        """ Perform NOP on exit of analyzer to maintain the state of repodata
-        cache """
+        return
 
     def download_package(self, solvable):
         if solvable in self.solvables:
