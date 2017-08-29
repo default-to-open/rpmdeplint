@@ -112,6 +112,9 @@ def clean_cache():
 
 
 class Repo(object):
+    """
+    Represents a Yum ("repomd") package repository to test dependencies against.
+    """
 
     yum_main_config_path = '/etc/yum.conf'
     yum_repos_config_glob = '/etc/yum.repos.d/*.repo'
@@ -120,7 +123,7 @@ class Repo(object):
     def from_yum_config(cls):
         """
         Yields Repo instances loaded from the system-wide Yum 
-        configuration in /etc/yum.conf and /etc/yum.repos.d/.
+        configuration in :file:`/etc/yum.conf` and :file:`/etc/yum.repos.d/`.
         """
         yumvars = get_yumvars()
         config = configparser.RawConfigParser()
@@ -145,6 +148,16 @@ class Repo(object):
                         'baseurl or metalink or mirrorlist' % section)
 
     def __init__(self, repo_name, baseurl=None, metalink=None):
+        """
+        :param repo_name: Name of the repository, for example "fedora-updates"
+                          (used in problems and error messages)
+        :param baseurl: URL or filesystem path to the base of the repository
+                        (there should be a repodata subdirectory under this)
+        :param metalink: URL to a Metalink file describing mirrors where
+                         the repository can be found
+
+        Exactly one of the *baseurl* or *metalink* parameters must be supplied.
+        """
         self.name = repo_name
         if not baseurl and not metalink:
             raise RuntimeError('Must specify either baseurl or metalink for repo')

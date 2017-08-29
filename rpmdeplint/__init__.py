@@ -51,6 +51,10 @@ class UnreadablePackageError(Exception):
 
 
 class DependencySet(object):
+    """
+    Contains dependency information from trying to install the packages under test.
+    """
+
     def __init__(self):
         self._packagedeps = defaultdict(lambda: dict(dependencies=[],problems=[]))
         self._packages_with_problems = set()
@@ -70,31 +74,45 @@ class DependencySet(object):
 
     @property
     def overall_problems(self):
+        """
+        List of str dependency problems found (if any)
+        """
         return sorted(self._overall_problems)
 
     @property
     def packages_with_problems(self):
+        """
+        List of :py:class:`solv.Solvable` which had dependency problems
+        """
         return sorted(self._packages_with_problems)
 
     @property
     def package_dependencies(self):
+        """
+        Dict in the form {package: {'dependencies': list of packages, 'problems': list of problems}}
+        """
         return dict(self._packagedeps)
 
 
 class DependencyAnalyzer(object):
     """An object which checks packages against provided repos
     for dependency satisfiability.
+
+    Construct an instance for a particular set of packages you want to test,
+    with the repos you want to test against. Then call the individual checking
+    methods to perform each check.
     """
 
     def __init__(self, repos, packages, arch=None):
         """
-        :param repos: An iterable of rpmdeplint.repodata.Repo instances
-        :param packages: An iterable of rpm package paths.
+        :param repos: An iterable of :py:class:`rpmdeplint.repodata.Repo` instances
+        :param packages: An iterable of RPM package paths to be tested
         """
         self.pool = solv.Pool()
         self.pool.setarch(arch)
 
-        self.solvables = []  #: list of solv.Solvable to be tested
+        #: List of :py:class:`solv.Solvable` to be tested (corresponding to *packages* parameter)
+        self.solvables = []
         self.commandline_repo = self.pool.add_repo('@commandline')
         for rpmpath in packages:
             solvable = self.commandline_repo.add_rpm(rpmpath)
@@ -104,7 +122,7 @@ class DependencyAnalyzer(object):
                         % self.pool.errstr)
             self.solvables.append(solvable)
 
-        self.repos_by_name = {}  #: mapping of (reponame, rpmdeplint.Repo)
+        self.repos_by_name = {}  #: Mapping of {repo name: :py:class:`rpmdeplint.repodata.Repo`}
         for repo in repos:
             repo.download_repodata()
             solv_repo = self.pool.add_repo(repo.name)
@@ -153,6 +171,8 @@ class DependencyAnalyzer(object):
         """
         Try to solve the goal of installing each of the packages under test,
         starting from an empty package set.
+
+        :return: Tuple of (bool ok?, :py:class:`DependencySet`)
         """
         solver = self.pool.Solver()
         ds = DependencySet()
@@ -190,6 +210,17 @@ class DependencyAnalyzer(object):
         return sel
 
     def find_repoclosure_problems(self):
+        """
+        Checks for any package in the repos which would have unsatisfied 
+        dependencies, if the packages under test were added to the repos.
+
+        This applies some extra constraints to prevent the solver from finding 
+        a solution which involves downgrading or installing an older package, 
+        which is technically a valid solution but is not expected if the 
+        packages are supposed to be updates.
+
+        :return: List of str problem descriptions if any problems were found
+        """
         problems = []
         solver = self.pool.Solver()
         # This selection matches packages obsoleted by our packages under test.
@@ -343,8 +374,9 @@ class DependencyAnalyzer(object):
     def find_conflicts(self):
         """
         Find undeclared file conflicts in the packages under test.
-        Returns a list of strings describing each conflict found
-        (or empty list if no conflicts were found).
+
+        :return: List of str describing each conflict found
+                 (or empty list if no conflicts were found)
         """
         solver = self.pool.Solver()
         problems = []
@@ -374,8 +406,9 @@ class DependencyAnalyzer(object):
         """
         Checks for any package in the repos which would upgrade or obsolete the 
         packages under test.
-        Returns a list of strings describing each upgrade problem found (or 
-        empty list if no problems were found).
+
+        :return: List of str describing each upgrade problem found (or 
+                 empty list if no problems were found)
         """
         # Pretend the packages under test are installed, then solve a distupgrade.
         # If any package under test would be erased, then it means some other 
