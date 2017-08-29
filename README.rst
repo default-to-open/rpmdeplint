@@ -32,7 +32,7 @@ Project Links
   or `view open bugs <https://bugzilla.redhat.com/buglist.cgi?product=rpmdeplint&bug_status=__open__>`__
 * For feedback and discussion join #beaker on irc.freenode.net.
 * We use `Gerrit <https://gerrit.beaker-project.org>`_ for code review. Patches welcome!
-* `Documentation <https://rpmdeplint.readthedocs.io>`_
+* `Documentation <https://docs.pagure.org/rpmdeplint/>`_
 
 Using
 -----
