@@ -384,22 +384,34 @@ class DependencyAnalyzer(object):
             logger.debug('Checking all files in %s for conflicts', solvable)
             for filename in self._files_in_solvable(solvable):
                 conflict_candidates = self._solvables_with_file(filename)
-                for i, conflicting in enumerate(conflict_candidates, 1):
+                checked_one_remote_candidate = False
+                for conflicting in conflict_candidates:
                     if conflicting == solvable:
                         continue
                     if not self._packages_can_be_installed_together(solvable, conflicting):
                         continue
+                    if conflicting not in self.solvables and checked_one_remote_candidate:
+                        # For each filename we are checking, we only want to 
+                        # check at most *one* package from the remote 
+                        # repositories. This is purely an optimization to save 
+                        # network bandwidth and time. We *are* potentially 
+                        # missing some real conflicts by doing this, but the 
+                        # cost of downloading every package in the distro for 
+                        # common directories like /usr/lib/debug is too high.
+                        # Note however that we do always ensure at least one 
+                        # *remote* candidate is checked (that is, not from the 
+                        # set of packages under test) to catch problems like 
+                        # bug 1502458.
+                        logger.debug('Skipping conflict check on %s with %s '
+                                'to save network bandwidth', filename, conflicting)
+                        continue
                     logger.debug('Considering conflict on %s with %s', filename, conflicting)
-                    conflicting_amount = len(conflict_candidates) - i
                     if not self._file_conflict_is_permitted(solvable, conflicting, filename):
                         msg = u'{} provides {} which is also provided by {}'.format(
                             six.text_type(solvable), filename, six.text_type(conflicting))
                         problems.append(msg)
-
-                    if conflicting_amount:
-                        logger.debug('Skipping %s further conflict checks on %s for %s',
-                                conflicting_amount, solvable, filename)
-                    break
+                    if conflicting not in self.solvables:
+                        checked_one_remote_candidate = True
         return sorted(problems)
 
     def find_upgrade_problems(self):

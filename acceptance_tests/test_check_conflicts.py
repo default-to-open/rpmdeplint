@@ -189,9 +189,15 @@ def test_conflict_not_ignored_if_contents_match_but_perms_differ(request, dir_se
                                          different_group.get_built_rpm('i386')])
     assert exitcode == 3
     assert err == ('Undeclared file conflicts:\n'
+            'x-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'x-0.1-1.i386 provides /usr/share/thing which is also provided by y-0.1-1.i386\n'
+            'x-0.1-1.i386 provides /usr/share/thing which is also provided by z-0.1-1.i386\n'
+            'y-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'y-0.1-1.i386 provides /usr/share/thing which is also provided by x-0.1-1.i386\n'
+            'y-0.1-1.i386 provides /usr/share/thing which is also provided by z-0.1-1.i386\n'
+            'z-0.1-1.i386 provides /usr/share/thing which is also provided by b-0.1-1.i386\n'
             'z-0.1-1.i386 provides /usr/share/thing which is also provided by x-0.1-1.i386\n'
+            'z-0.1-1.i386 provides /usr/share/thing which is also provided by y-0.1-1.i386\n'
             )
 
 
@@ -331,6 +337,47 @@ def test_finds_conflicts_in_installonly_packages(request, dir_server):
     assert err == ('Undeclared file conflicts:\n'
             'kernel-core-0.2-1.i386 provides /usr/share/licenses/kernel-core/COPYING '
             'which is also provided by kernel-core-0.1-1.i386\n')
+
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1502458
+def test_finds_conflict_against_older_subpackage(request, dir_server):
+    conflicting_path = 'usr/share/man/man1/vim.1.gz'
+    oldvim = rpmfluff.SimpleRpmBuild('vim', '7.4.1989', '2', ['x86_64'])
+    oldvim.add_subpackage('common')
+    oldvim.add_subpackage('minimal')
+    oldvim.add_installed_file(installPath=conflicting_path,
+            sourceFile=rpmfluff.SourceFile('vim.1', 'oldcontent\n'),
+            subpackageSuffix='common')
+    oldvim.get_subpackage('minimal').section_files += '/%s\n' % conflicting_path
+    baserepo = rpmfluff.YumRepoBuild([oldvim])
+    baserepo.make('x86_64')
+    dir_server.basepath = baserepo.repoDir
+
+    newvim = rpmfluff.SimpleRpmBuild('vim', '8.0.118', '1', ['x86_64'])
+    newvim.add_subpackage('common')
+    newvim.add_subpackage('minimal')
+    newvim.add_installed_file(installPath=conflicting_path,
+            sourceFile=rpmfluff.SourceFile('vim.1', 'newcontent\n'),
+            subpackageSuffix='common')
+    newvim.get_subpackage('minimal').section_files += '/%s\n' % conflicting_path
+    newvim.make()
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(oldvim.get_base_dir())
+        shutil.rmtree(newvim.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check-conflicts',
+                                         '--repo=base,{}'.format(dir_server.url),
+                                         newvim.get_built_rpm('x86_64', name='vim-common'),
+                                         newvim.get_built_rpm('x86_64', name='vim-minimal')])
+    assert exitcode == 3
+    assert err == ('Undeclared file conflicts:\n'
+            'vim-common-8.0.118-1.x86_64 provides /usr/share/man/man1/vim.1.gz '
+            'which is also provided by vim-minimal-7.4.1989-2.x86_64\n'
+            'vim-minimal-8.0.118-1.x86_64 provides /usr/share/man/man1/vim.1.gz '
+            'which is also provided by vim-common-7.4.1989-2.x86_64\n')
 
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1448768
