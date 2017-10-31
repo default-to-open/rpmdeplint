@@ -269,14 +269,6 @@ class DependencyAnalyzer(object):
                 solv.Dataiterator.SEARCH_FILES | solv.Dataiterator.SEARCH_COMPLETE_FILELIST)
         return [match.str for match in iterator]
 
-    def _solvables_with_file(self, filename):
-        iterator = self.pool.Dataiterator(self.pool.str2id('solvable:filelist'),
-                filename,
-                solv.Dataiterator.SEARCH_STRING |
-                solv.Dataiterator.SEARCH_FILES |
-                solv.Dataiterator.SEARCH_COMPLETE_FILELIST)
-        return [match.solvable for match in iterator]
-
     def _packages_can_be_installed_together(self, left, right):
         """
         Returns True if the given packages can be installed together.
@@ -382,15 +374,27 @@ class DependencyAnalyzer(object):
         problems = []
         for solvable in self.solvables:
             logger.debug('Checking all files in %s for conflicts', solvable)
-            for filename in self._files_in_solvable(solvable):
-                conflict_candidates = self._solvables_with_file(filename)
-                checked_one_remote_candidate = False
-                for conflicting in conflict_candidates:
-                    if conflicting == solvable:
-                        continue
-                    if not self._packages_can_be_installed_together(solvable, conflicting):
-                        continue
-                    if conflicting not in self.solvables and checked_one_remote_candidate:
+            filenames = set(self._files_in_solvable(solvable))
+            # In libsolv, iterating all solvables is fast, and listing all 
+            # files in a solvable is fast, but finding solvables which contain 
+            # a given file is *very slow* (see bug 1465736).
+            # Hence this approach, where we visit each solvable and use Python 
+            # set operations to look for any overlapping filenames.
+            for conflicting in self.pool.solvables:
+                if conflicting == solvable:
+                    continue
+                conflict_filenames = filenames.intersection(self._files_in_solvable(conflicting))
+                if not conflict_filenames:
+                    continue
+                if not self._packages_can_be_installed_together(solvable, conflicting):
+                    continue
+                for filename in conflict_filenames:
+                    logger.debug('Considering conflict on %s with %s', filename, conflicting)
+                    if not self._file_conflict_is_permitted(solvable, conflicting, filename):
+                        msg = u'{} provides {} which is also provided by {}'.format(
+                            six.text_type(solvable), filename, six.text_type(conflicting))
+                        problems.append(msg)
+                    if conflicting not in self.solvables:
                         # For each filename we are checking, we only want to 
                         # check at most *one* package from the remote 
                         # repositories. This is purely an optimization to save 
@@ -402,16 +406,9 @@ class DependencyAnalyzer(object):
                         # *remote* candidate is checked (that is, not from the 
                         # set of packages under test) to catch problems like 
                         # bug 1502458.
-                        logger.debug('Skipping conflict check on %s with %s '
-                                'to save network bandwidth', filename, conflicting)
-                        continue
-                    logger.debug('Considering conflict on %s with %s', filename, conflicting)
-                    if not self._file_conflict_is_permitted(solvable, conflicting, filename):
-                        msg = u'{} provides {} which is also provided by {}'.format(
-                            six.text_type(solvable), filename, six.text_type(conflicting))
-                        problems.append(msg)
-                    if conflicting not in self.solvables:
-                        checked_one_remote_candidate = True
+                        logger.debug('Skipping further checks on %s '
+                                'to save network bandwidth', filename)
+                        filenames.remove(filename)
         return sorted(problems)
 
     def find_upgrade_problems(self):
