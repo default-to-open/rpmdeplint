@@ -166,6 +166,14 @@ def add_common_dependency_analyzer_args(parser):
             help='Limit dependency resolution to ARCH packages [default: any arch]')
 
 
+def validate_common_dependency_analyzer_args(parser, args):
+    if not args.repos and not args.repos_from_system:
+        parser.error('no repos specified to test against\n'
+                     'Use the --repo option to test against specific repository URLs,\n'
+                     'or use the --repos-from-system option to load the '
+                     'system-wide repos from /etc/yum.repos.d/.')
+
+
 def main():
     parser = argparse.ArgumentParser(description='Checks for errors in '
             'RPM packages in the context of their dependency graph.', prog='rpmdeplint')
@@ -215,6 +223,8 @@ def main():
     args = parser.parse_args()
     logging.getLogger().setLevel(logging.DEBUG)
     log_to_stream(sys.stderr, level=logging.DEBUG if args.debug else logging.WARNING)
+
+    validate_common_dependency_analyzer_args(parser, args)
 
     try:
         return args.func(args)
