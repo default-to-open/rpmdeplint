@@ -242,3 +242,31 @@ def test_prints_error_on_repo_download_failure(request, dir_server):
     assert exitcode == 1
     assert err.startswith('Failed to download repodata')
     assert 'Traceback' not in err
+
+
+def test_prints_error_on_repodata_file_download_failure(request, dir_server):
+    # Similar to the above, but in this case repomd.xml works but 
+    # primary.xml.gz is broken. We test this case specifically, because the 
+    # code paths for fetching repomd.xml and the other repodata files are 
+    # separate.
+    p1 = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['x86_64'])
+    p1.add_requires('unsatisfied')
+    repo = rpmfluff.YumRepoBuild([p1])
+    repo.make('x86_64')
+    for repodata_filename in os.listdir(os.path.join(repo.repoDir, 'repodata')):
+        if 'primary' in repodata_filename:
+            os.unlink(os.path.join(repo.repoDir, 'repodata', repodata_filename))
+    dir_server.basepath = repo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(repo.repoDir)
+        shutil.rmtree(p1.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint(['rpmdeplint', 'check',
+            '--repo=base,{}'.format(dir_server.url), p1.get_built_rpm('x86_64')])
+
+    assert exitcode == 1
+    assert err.startswith('Failed to download repodata')
+    assert '404' in err
+    assert 'Traceback' not in err

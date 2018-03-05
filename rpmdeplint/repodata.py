@@ -248,10 +248,15 @@ class Repo(object):
             os.close(fd)
             raise
         try:
-            response = requests_session.get(url, stream=True)
-            for chunk in response.raw.stream(decode_content=False):
-                f.write(chunk)
-            response.close()
+            try:
+                response = requests_session.get(url, stream=True)
+                response.raise_for_status()
+                for chunk in response.raw.stream(decode_content=False):
+                    f.write(chunk)
+                response.close()
+            except IOError as e:
+                raise RepoDownloadError('Failed to download repodata file %s for %r: %s'
+                            % (os.path.basename(url), self, e))
             f.flush()
             f.seek(0)
             os.fchmod(f.fileno(), 0o644)
