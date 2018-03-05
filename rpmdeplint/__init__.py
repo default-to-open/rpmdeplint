@@ -108,6 +108,9 @@ class DependencyAnalyzer(object):
         :param repos: An iterable of :py:class:`rpmdeplint.repodata.Repo` instances
         :param packages: An iterable of RPM package paths to be tested
         """
+        # delayed import to avoid circular dependency
+        from rpmdeplint.repodata import RepoDownloadError
+
         self.pool = solv.Pool()
         self.pool.setarch(arch)
 
@@ -124,7 +127,14 @@ class DependencyAnalyzer(object):
 
         self.repos_by_name = {}  #: Mapping of {repo name: :py:class:`rpmdeplint.repodata.Repo`}
         for repo in repos:
-            repo.download_repodata()
+            try:
+                repo.download_repodata()
+            except RepoDownloadError as e:
+                if repo.skip_if_unavailable:
+                    logger.warn('Skipping repo %s: %s', repo.name, e)
+                    continue
+                else:
+                    raise
             solv_repo = self.pool.add_repo(repo.name)
             # solv.xfopen does not accept unicode filenames on Python 2
             solv_repo.add_rpmmd(solv.xfopen_fd(str(repo.primary_url), repo.primary.fileno()),

@@ -108,3 +108,14 @@ def test_bad_repo_url_raises_error(yumdir):
         repos[0].download_repodata()
     assert 'Cannot download repomd.xml' in str(rde.value)
     assert "repo_name='dummy'" in str(rde.value)
+
+
+def test_skip_if_unavailable_is_obeyed(yumdir):
+    yumdir.join('yum.repos.d', 'dummy.repo').write(
+            '[dummy]\nname=Dummy\nbaseurl=http://example.invalid/dummy\nenabled=1\nskip_if_unavailable=1\n',
+            ensure=True)
+
+    repos = list(Repo.from_yum_config())
+    assert len(repos) == 1
+    assert repos[0].name == 'dummy'
+    assert repos[0].skip_if_unavailable == True

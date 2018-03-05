@@ -134,20 +134,23 @@ class Repo(object):
             if (config.has_option(section, 'enabled') and
                     not config.getboolean(section, 'enabled')):
                 continue
+            skip_if_unavailable = False
+            if config.has_option(section, 'skip_if_unavailable'):
+                skip_if_unavailable = config.getboolean(section, 'skip_if_unavailable')
             if config.has_option(section, 'baseurl'):
                 baseurl = substitute_yumvars(config.get(section, 'baseurl'), yumvars)
-                yield cls(section, baseurl=baseurl)
+                yield cls(section, baseurl=baseurl, skip_if_unavailable=skip_if_unavailable)
             elif config.has_option(section, 'metalink'):
                 metalink = substitute_yumvars(config.get(section, 'metalink'), yumvars)
-                yield cls(section, metalink=metalink)
+                yield cls(section, metalink=metalink, skip_if_unavailable=skip_if_unavailable)
             elif config.has_option(section, 'mirrorlist'):
                 mirrorlist = substitute_yumvars(config.get(section, 'mirrorlist'), yumvars)
-                yield cls(section, metalink=mirrorlist)
+                yield cls(section, metalink=mirrorlist, skip_if_unavailable=skip_if_unavailable)
             else:
                 raise ValueError('Yum config section %s has no '
                         'baseurl or metalink or mirrorlist' % section)
 
-    def __init__(self, repo_name, baseurl=None, metalink=None):
+    def __init__(self, repo_name, baseurl=None, metalink=None, skip_if_unavailable=False):
         """
         :param repo_name: Name of the repository, for example "fedora-updates"
                           (used in problems and error messages)
@@ -155,6 +158,8 @@ class Repo(object):
                         (there should be a repodata subdirectory under this)
         :param metalink: URL to a Metalink file describing mirrors where
                          the repository can be found
+        :param skip_if_unavailable: If True, suppress errors downloading
+                                    repodata from the repository
 
         Exactly one of the *baseurl* or *metalink* parameters must be supplied.
         """
@@ -163,6 +168,7 @@ class Repo(object):
             raise RuntimeError('Must specify either baseurl or metalink for repo')
         self.baseurl = baseurl
         self.metalink = metalink
+        self.skip_if_unavailable = skip_if_unavailable
 
     def download_repodata(self):
         clean_cache()
