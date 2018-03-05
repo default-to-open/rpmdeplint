@@ -156,10 +156,10 @@ def comma_separated_repo(value):
 def add_common_dependency_analyzer_args(parser):
     parser.add_argument('rpms', metavar='RPMPATH', nargs='+',
             help='Path to an RPM package to be checked')
-    parser.add_argument('-r', '--repo', metavar='NAME,REPOPATH',
+    parser.add_argument('-r', '--repo', metavar='NAME,URL',
             type=comma_separated_repo,
             action='append', dest='repos', default=[],
-            help='Name and path of a repo to test against')
+            help='Name and URL of a repo to test against')
     parser.add_argument('-R', '--repos-from-system', action='store_true',
             help='Test against system repos from /etc/yum.repos.d/')
     parser.add_argument('-a', '--arch', dest='arch', default=None,

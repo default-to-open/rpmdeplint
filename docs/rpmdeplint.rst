@@ -6,7 +6,7 @@ rpmdeplint
 Synopsis
 ~~~~~~~~
 
-| :program:`rpmdeplint` COMMAND [:option:`--repo` NAME,PATH] [RPMPATH]
+| :program:`rpmdeplint` COMMAND [:option:`--repo` NAME,URL] [RPMPATH]
 
 Description
 ~~~~~~~~~~~
@@ -17,11 +17,19 @@ RPM packages against given repositories.
 Options
 ~~~~~~~
 
-.. option:: --repo NAME,PATH, -r NAME,PATH
+.. option:: --repo NAME,URL, -r NAME,URL
 
-   You can provide multiple repos of each type. The NAME may be anything you
-   choose. The path must either be a filesystem path or a URL. In either case,
-   the path is expected to point at `repodata/repomd.xml`.
+   Load yum repo from the given URL. You can also specify a local filesystem 
+   path instead of a URL.
+
+   The NAME is for descriptive purposes only. It has no impact on dependency 
+   resolution. If rpmdeplint finds a dependency problem relating to a package 
+   in this repo, the NAME will appear in the error message.
+
+   Note that the URL should point at a directory containing 
+   ``repodata/repomd.xml``. For example::
+
+     --repo=fedora,https://download.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/
 
 .. option:: --repos-from-system, -R
 
