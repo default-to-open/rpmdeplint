@@ -107,16 +107,17 @@ Exit status
 ~~~~~~~~~~~
 
 0
-    Normally, exit status is 0 if rpmdeplint executes successfully.
+    Checks ran successfully, and no problems were found
 
 1
-    Errors that result in tracebacks, such as infrastructure errors.
+    Error occurred while running checks (including network errors downloading 
+    repodata)
 
 2
-    Usage error, in case of incorrect use of commands or options.
+    Command-line usage error
 
 3
-    Failure of a test.
+    Problems were found with the packages under test
 
 Examples
 ~~~~~~~~
