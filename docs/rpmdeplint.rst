@@ -121,23 +121,24 @@ Exit status
 Examples
 ~~~~~~~~
 
-Test if an RPM package has unsatisfied dependencies against a remote repository::
+Imagine you have produced a new pre-release build of your package, and you want 
+to check if it will cause dependency errors in Fedora::
 
-  rpmdeplint check-sat --repo beaker,https://beaker-project.org/yum/client/Fedora23/ my-package.rpm
+    rpmdeplint check \
+        --repo=fedora,https://download.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/ \
+        greenwave-0.6.1-0.git.2.2529bfb.fc29.noarch.rpm
 
-    Problems with dependency set:
-    nothing provides python(abi) = 2.7 needed by some-package-1.2.3.fc23.noarch
-    nothing provides TurboGears >= 1.1.3 needed by other-package-33.2-1.fc23.noarch
+You can also use a local filesystem path instead of an absolute URL for the 
+repos to test against. For example, if you are offline you could re-use your 
+local dnf cache. (Note that rpmdeplint may need to fetch packages for file 
+conflict checking and this step will fail if you use an incomplete repo such as 
+the dnf cache.)
 
-List all dependencies for `my-package.rpm`::
+::
 
-  rpmdeplint list-deps --repo beaker,https://beaker-project.org/yum/client/Fedora23/ my-package.rpm
-
-    my-package has 72 dependencies:
-            basesystem-11-1.fc23.noarch
-            bash-4.3.42-1.fc23.x86_64
-            beaker-common-22.1-1.fc22.noarch
-            ....
+    rpmdeplint check \
+        --repo=rawhide,/var/cache/dnf/rawhide-2d95c80a1fa0a67d/
+        greenwave-0.6.1-0.git.2.2529bfb.fc29.noarch.rpm
 
 Bugs
 ~~~~
