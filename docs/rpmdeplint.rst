@@ -31,6 +31,18 @@ Options
 
    This option can be combined with one or more :option:`--repo` options.
 
+.. option:: --arch ARCH
+
+   Only consider packages for ARCH when solving dependencies. If a repo 
+   contains packages for any other arches, they will be ignored.
+
+   Note that the traditional RPM arch compatibility rules are applied, which 
+   means that ``noarch`` packages and "inferior" arch packages are also 
+   included (for example, ``i686`` implicitly includes ``i386``).
+
+   This option is normally *not* required, because distribution repos are 
+   normally split by arch (including the various special cases for multilib).
+
 Arguments
 ~~~~~~~~~
 
