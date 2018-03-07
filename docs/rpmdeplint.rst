@@ -17,13 +17,13 @@ RPM packages against given repositories.
 Options
 ~~~~~~~
 
-.. option:: --repo NAME,PATH
+.. option:: --repo NAME,PATH, -r NAME,PATH
 
    You can provide multiple repos of each type. The NAME may be anything you
    choose. The path must either be a filesystem path or a URL. In either case,
    the path is expected to point at `repodata/repomd.xml`.
 
-.. option:: --repos-from-system
+.. option:: --repos-from-system, -R
 
    Use yum repos from the system-wide configuration in :file:`/etc/yum.conf` 
    and :file:`/etc/yum.repos.d/{*}.repo`. Repos which are disabled in the 
@@ -31,7 +31,7 @@ Options
 
    This option can be combined with one or more :option:`--repo` options.
 
-.. option:: --arch ARCH
+.. option:: --arch ARCH, -a ARCH
 
    Only consider packages for ARCH when solving dependencies. If a repo 
    contains packages for any other arches, they will be ignored.
