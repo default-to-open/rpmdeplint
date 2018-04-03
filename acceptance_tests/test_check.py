@@ -128,6 +128,30 @@ def test_guesses_arch_when_combined_with_noarch_package(request, dir_server):
             'nothing provides libfoo.so.4 needed by b-0.1-1.i386\n')
 
 
+# https://bugzilla.redhat.com/show_bug.cgi?id=1562073
+def test_accepts_ppc64le(request, dir_server):
+    p = rpmfluff.SimpleRpmBuild('a', '0.1', '1', ['ppc64le'])
+    p.add_requires('libfoo.so.4')
+    p.make()
+
+    baserepo = rpmfluff.YumRepoBuild([])
+    baserepo.make('ppc64le')
+    dir_server.basepath = baserepo.repoDir
+
+    def cleanUp():
+        shutil.rmtree(baserepo.repoDir)
+        shutil.rmtree(p.get_base_dir())
+    request.addfinalizer(cleanUp)
+
+    exitcode, out, err = run_rpmdeplint([
+        'rpmdeplint', 'check', '--repo=base,{}'.format(dir_server.url),
+        p.get_built_rpm('ppc64le')
+    ])
+    assert exitcode == 3, err
+    assert err == ('Problems with dependency set:\n'
+            'nothing provides libfoo.so.4 needed by a-0.1-1.ppc64le\n')
+
+
 def test_prints_error_on_repo_download_failure(request, dir_server):
     # Specifically we don't want an unhandled exception, because that triggers abrt.
     test_tool_rpm = rpmfluff.SimpleRpmBuild('test-tool', '10', '3.el6', ['x86_64'])

@@ -37,13 +37,7 @@ def get_hawkey_package_arch(package_name):
     with open(package_name, 'rb') as fin:
         rpm_file = ts.hdrFromFdno(fin)
     pkg_arch = rpm_file[rpm.RPMTAG_ARCH].decode('utf8')
-
-    try:
-        return arch_map[pkg_arch]
-    except KeyError:
-        raise AttributeError(
-            'Architecture was not correctly determined for {} arch was {}'.format(
-                package_name, pkg_arch))
+    return arch_map.get(pkg_arch, pkg_arch)
 
 
 class DependencySet(object):
