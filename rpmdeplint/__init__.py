@@ -165,7 +165,7 @@ class DependencyAnalyzer(object):
     def __exit__(self, type, value, tb):
         return
 
-    def download_package(self, solvable):
+    def download_package_header(self, solvable):
         if solvable in self.solvables:
             # It's a package under test, nothing to download
             return solvable.lookup_location()[0]
@@ -173,9 +173,7 @@ class DependencyAnalyzer(object):
         baseurl = solvable.lookup_str(self.pool.str2id('solvable:mediabase'))
         repo = self.repos_by_name[solvable.repo.name]
         checksum = solvable.lookup_checksum(self.pool.str2id('solvable:checksum'))
-        return repo.download_package(href, baseurl,
-                checksum_type=checksum.typestr(),
-                checksum=checksum.hex())
+        return repo.download_package_header(href, baseurl)
 
     def try_to_install_all(self):
         """
@@ -320,7 +318,7 @@ class DependencyAnalyzer(object):
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
 
         left_hdr = ts.hdrFromFdno(open(left.lookup_location()[0], 'rb'))
-        right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
+        right_hdr = ts.hdrFromFdno(open(self.download_package_header(right), 'rb'))
         left_files = rpm.files(left_hdr)
         right_files = rpm.files(right_hdr)
         if left_files[filename].matches(right_files[filename]):
@@ -350,7 +348,7 @@ class DependencyAnalyzer(object):
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
 
         left_hdr = ts.hdrFromFdno(open(left.lookup_location()[0], 'rb'))
-        right_hdr = ts.hdrFromFdno(open(self.download_package(right), 'rb'))
+        right_hdr = ts.hdrFromFdno(open(self.download_package_header(right), 'rb'))
         left_fi = rpm.fi(left_hdr)
         try:
             while left_fi.FN() != filename:

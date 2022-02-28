@@ -20,6 +20,7 @@ import glob
 import time
 from six.moves import configparser
 import librepo
+import rpm
 
 logger = logging.getLogger(__name__)
 requests_session = requests.Session()
@@ -274,26 +275,86 @@ class Repo(object):
             os.unlink(temp_path)
             raise
 
-    def download_package(self, location, baseurl, checksum_type, checksum):
+    def _is_header_complete(self, local_path):
+        """
+        Returns `True` if the RPM file `local_path` has complete RPM header.
+        """
+        try:
+            with open(local_path, 'rb') as f:
+                try:
+                    ts = rpm.TransactionSet()
+                    ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
+
+                    # Supress the RPM error message printed to stderr in case
+                    # the header is not complete. Set the log verbosity to CRIT
+                    # to achieve that. This way the critical errors are still
+                    # logged, but the expected "bad header" error is not.
+                    rpm.setVerbosity(rpm.RPMLOG_CRIT)
+                    ts.hdrFromFdno(f)
+                    return True
+                except rpm.error as e:
+                    return False
+                finally:
+                    # Revert back to RPMLOG_ERR.
+                    rpm.setVerbosity(rpm.RPMLOG_ERR)
+        except FileNotFoundError:
+            return False
+
+    def download_package_header(self, location, baseurl):
+        """
+        Downloads the package header so it can be parsed by `hdrFromFdno`.
+
+        There is no function provided by the Python `rpm` module which would
+        return the size of RPM header. This method therefore tries to download
+        first N bytes of the RPM file and checks if the header is complete or
+        not using the `hdrFromFdno` RPM funtion.
+
+        As the header size can be very different from package to package, it
+        tries to download first 100KB and if header is not complete, it
+        fallbacks to 1MB and 5MB. If that is not enough, the final fallback
+        downloads whole RPM file.
+
+        This strategy still wastes some bandwidth, because we are downloading
+        first N bytes repeatedly, but because header of typical RPM fits
+        into first 100KB usually and because the RPM data is much bigger than
+        what we download repeatedly, it saves lot of time and bandwidth overall.
+
+        Checksums cannot be checked by this method, because checksums work
+        only when complete RPM file is downloaded.
+        """
         if self.librepo_handle.local:
-            local_path = os.path.join(self._root_path, location)
             logger.debug('Using package %s from local filesystem directly', local_path)
             return local_path
+
+        # Check if we already downloaded this file and return it if so.
+        local_path = os.path.join(self._root_path, os.path.basename(location))
+        if self._is_header_complete(local_path):
+            logger.debug("Using already downloaded package from %s", local_path)
+            return local_path
+
         logger.debug('Loading package %s from repo %s', location, self.name)
-        target = librepo.PackageTarget(location,
-                base_url=baseurl,
-                checksum_type=librepo.checksum_str_to_type(checksum_type),
-                checksum=checksum,
-                dest=self._root_path,
-                handle=self.librepo_handle)
-        librepo.download_packages([target])
-        if target.err and target.err == 'Already downloaded':
-            logger.debug('Already downloaded %s', target.local_path)
-        elif target.err:
-            raise PackageDownloadError('Failed to download %s from repo %s: %s'
-                    % (location, self.name, target.err))
-        else:
-            logger.debug('Saved as %s', target.local_path)
+        for byterangeend in [100000, 1000000, 5000000, 0]:
+            target = librepo.PackageTarget(location,
+                    base_url=baseurl,
+                    dest=self._root_path,
+                    handle=self.librepo_handle,
+                    byterangestart=0,
+                    byterangeend=byterangeend
+            )
+
+            if byterangeend:
+                logger.debug('Download first %s bytes of %s', byterangeend, location)
+            else:
+                logger.debug('Download %s', location)
+            librepo.download_packages([target])
+            if target.err and target.err != 'Already downloaded':
+                raise PackageDownloadError('Failed to download %s from repo %s: %s'
+                        % (location, self.name, target.err))
+            else:
+                if self._is_header_complete(target.local_path):
+                    break
+
+        logger.debug('Saved as %s', target.local_path)
         return target.local_path
 
     @property
